@@ -87,6 +87,11 @@ export function validateData() {
     if (!x.story || !x.quote || !x.hint) problems.push(`마을 사람 ${x.id}: 이야기·한마디·힌트 빠짐`);
   });
   if (!CHEST_LINES.length) problems.push('지도: 보물 상자 문구 없음');
+  // 디바인 수호신: 회색 마을 빼고 빛깔 땅마다 한 마리
+  RANKS.slice(1).forEach((r) => {
+    const n = PETS.filter((p) => p.rarity === 'divine' && p.home === r.id).length;
+    if (n !== 1) problems.push(`디바인: 땅 '${r.id}' 수호신이 ${n}마리`);
+  });
   CONSTELLATIONS.forEach((c) => {
     unique(c.id, '별자리');
     if (c.points.length !== STARS_PER_CONSTELLATION) problems.push(`별자리 ${c.id}: 별 ${c.points.length}개`);

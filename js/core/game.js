@@ -9,7 +9,8 @@ import { PARENT_QUESTS, PARENT_QUESTS_PER_WEEK, PARENT_IDS } from '../data/paren
 import { PETS, EGGS, eggNeed } from '../data/pets.js';
 import { STRENGTH_BONUS } from '../data/stats.js';
 import { ALLCLEAR_WARMTH } from '../data/sky.js';
-import { levelInfo } from './level.js';
+import { levelInfo, rankIndexOf } from './level.js';
+import { RANKS } from '../data/titles.js';
 import { dateKey, weekKey, addDays, daysBetween, seededRandom, weightedPick, weekdayOf, uid } from './util.js';
 
 const LOG_LIMIT = 300;
@@ -373,10 +374,37 @@ export function toggleParentQuest(s, monday, who, id) {
 
 /** 알 종류별 확률로 등급을 정하고, 아직 없는 펫이 나올 확률을 3배로 */
 export function rollPet(s, eggType, rand = Math.random) {
+  if (eggType === 'divine') return guardianPet(s, rand);
   const { odds } = EGGS[eggType];
   const rarity = weightedPick(Object.keys(odds), (k) => odds[k], rand);
   return weightedPick(PETS.filter((p) => p.rarity === rarity), (p) => (s.pets[p.id] ? 1 : 3), rand);
 }
+
+/**
+ * 디바인 알(수호 알)에서 나오는 펫: 도착한 땅 중 아직 못 만난 수호신을 앞 땅부터.
+ * 행운으로 미리 만난 수호신이 있으면 다른 못 만난 수호신, 모두 만났으면 아무 수호신(친밀도 +1).
+ */
+function guardianPet(s, rand) {
+  const reached = rankIndexOf(levelInfo(s.hero.xp).level);
+  const divines = PETS.filter((p) => p.rarity === 'divine');
+  const landIdx = (p) => RANKS.findIndex((r) => r.id === p.home);
+  const due = divines.filter((p) => !s.pets[p.id] && landIdx(p) <= reached).sort((a, b) => landIdx(a) - landIdx(b));
+  if (due.length) return due[0];
+  const unmet = divines.filter((p) => !s.pets[p.id]);
+  return weightedPick(unmet.length ? unmet : divines, () => 1, rand);
+}
+
+/** 새 빛깔 땅에 도착할 때마다 그 땅의 수호 알(디바인 알) 하나. 업데이트 전에 이미 지나온 땅 몫도 여기서 채운다. */
+export function grantLandEggs(s) {
+  const reached = rankIndexOf(levelInfo(s.hero.xp).level);
+  while (s.landEggs < reached) {
+    s.landEggs += 1;
+    s.eggsWaiting.push('divine');
+    s.celebrations.push({ type: 'divineEgg', land: RANKS[s.landEggs].id });
+  }
+}
+
+export const landEggsDue = (s) => s.landEggs < rankIndexOf(levelInfo(s.hero.xp).level);
 
 export function hatch(s, index = 0) {
   const [egg] = s.eggsWaiting.splice(index, 1);
@@ -407,6 +435,7 @@ export function grant(s, { who = 'hero', xp = 0, stat = null, n = 0, text }) {
   const { level } = levelInfo(char.xp);
   for (let lv = char.bestLevel + 1; lv <= level; lv += 1) s.celebrations.push({ type: 'level', who, level: lv });
   char.bestLevel = Math.max(char.bestLevel, level);
+  if (who === 'hero') grantLandEggs(s);
   addLog(s, { who, text, xp, stat, n });
 }
 
@@ -440,7 +469,7 @@ export function warmEgg(s, xp) {
 
 export function needsPlan(s, today = dateKey()) {
   const monday = weekKey(today);
-  return !s.days[today] || !s.weeks[monday] || !s.parentWeeks[monday];
+  return !s.days[today] || !s.weeks[monday] || !s.parentWeeks[monday] || landEggsDue(s);
 }
 
 function planParents(s, monday) {
@@ -483,6 +512,7 @@ export function ensurePlans(s, today = dateKey()) {
   }
   if (!s.parentWeeks[monday]) s.parentWeeks[monday] = planParents(s, monday);
   if (!s.days[today]) s.days[today] = planDay(s, today);
+  grantLandEggs(s);
   prune(s, today);
 }
 

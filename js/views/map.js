@@ -126,7 +126,7 @@ export function render() {
         ${chest ? `<li>🎁 다음 보물 상자까지 <b>${chest.left}칸</b></li>` : ''}
         ${villager ? `<li>💬 다음 마을 사람까지 <b>${villager.left}칸</b></li>` : ''}
         <li>${nextLand
-          ? `${nextLand.placeIcon} 다음 땅 ${esc(nextLand.place)}까지 <b>${nextEvent(now, 'gate')?.left ?? '?'}칸</b> (Lv.${nextLand.from}에 ${esc(nextLand.name)} 되찾기)`
+          ? `${nextLand.placeIcon} 다음 땅 ${esc(nextLand.place)}까지 <b>${nextEvent(now, 'gate')?.left ?? '?'}칸</b> (Lv.${nextLand.from}에 ${esc(nextLand.name)} 되찾기) — 도착하면 ✨디바인 알!`
           : '🌈 모든 땅에 왔어요! 구름 섬에서 계속 걸어가요.'}</li>
       </ul>
       ${offPage.length ? `<div class="row">${offPage.map((e) =>

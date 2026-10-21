@@ -42,7 +42,8 @@ export const defaults = () => ({
   hidden: {},                    // 발견한 히든 퀘스트 { id: { date, by, note } }
   praise: [],                    // 칭찬 카드 { id, from, to, stat, text, date }
   egg: { warmth: 0, need: 200, laid: 0 }, // 품고 있는 보통 알
-  eggsWaiting: [],               // 부화를 기다리는 알 종류 ('normal' | 'gold' | 'rainbow')
+  eggsWaiting: [],               // 부화를 기다리는 알 종류 ('normal' | 'gold' | 'rainbow' | 'divine')
+  landEggs: 0,                   // 지금까지 받은 수호 알(디바인 알) 수 = 도착한 빛깔 땅 수 (회색 마을 빼고)
   pets: {},                      // { 펫 id: { count, first } }
   map: { lastTile: 0, claimed: {} }, // 모험 지도: 지난번에 보여 준 칸(걷는 애니메이션용), 연 이벤트 { 칸: 날짜 }
   stars: { total: 0 },           // 일일 퀘스트를 모두 끝낸 날 수 = 밤하늘의 별 (data/sky.js)

@@ -1,17 +1,23 @@
 // 알과 펫. 퀘스트로 얻은 경험치만큼 품고 있는 알이 따뜻해지고, 다 데워지면 부화를 기다리는 알이 된다.
 // 히든 퀘스트는 황금 알, 주간 열쇠 4개(비밀의 방)는 무지개 알을 준다. 펫은 모으는 재미일 뿐 능력은 없다.
+// 디바인(가장 높은 등급, 아들이 좋아하는 로블록스 Steal an Egg 의 최고 등급 이름): 빛깔 땅마다 수호신 한 마리.
+//   확실하게 얻는 길 — 새 빛깔 땅에 처음 도착하면(레벨 5·8·11…) 그 땅의 수호 알(디바인 알)을 받는다(core/game.js grantLandEggs).
+//   행운의 길 — 무지개 알·황금 알에서 아주 드물게. 운으로만 얻게 하지 않는 이유: '될 때까지 뽑기' 마음 대신 '노력하면 얻는다'.
+//   착한 행동(히든·칭찬 카드)에는 일부러 디바인을 걸지 않는다(착한 일이 디바인을 얻는 수단이 되지 않게).
 // home: 사는 곳 = 빛깔 단계 id(titles.js RANKS 의 place). likes: 좋아하는 것. 도감에서 펫을 누르면 정보창에 나온다.
 
 export const RARITY = {
   common: { name: '보통', stars: '★' },
   rare: { name: '희귀', stars: '★★' },
   legend: { name: '전설', stars: '★★★' },
+  divine: { name: '디바인', stars: '★★★★' },
 };
 
 export const EGGS = {
   normal: { name: '보통 알', odds: { common: 65, rare: 30, legend: 5 } },
-  gold: { name: '황금 알', odds: { common: 0, rare: 75, legend: 25 } },
-  rainbow: { name: '무지개 알', odds: { common: 0, rare: 50, legend: 50 } },
+  gold: { name: '황금 알', odds: { common: 0, rare: 75, legend: 24, divine: 1 } },
+  rainbow: { name: '무지개 알', odds: { common: 0, rare: 50, legend: 48, divine: 2 } },
+  divine: { name: '디바인 알', odds: { divine: 100 } }, // 새 빛깔 땅의 수호 알 — 그 땅의 수호신이 나온다
 };
 
 /** n번째 보통 알을 데우는 데 필요한 경험치 — 처음엔 빨리, 점점 천천히(최대 600) */
@@ -21,6 +27,7 @@ const pet = (rarity) => (id, emoji, name, desc, home, likes) => ({ id, emoji, na
 const common = pet('common');
 const rare = pet('rare');
 const legend = pet('legend');
+const divine = pet('divine');
 
 export const PETS = [
   common('rabbit', '🐰', '솜뭉치 토끼', '귀가 쫑긋, 칭찬을 제일 먼저 들어요.', 'red', '당근과 딸기'),
@@ -68,14 +75,25 @@ export const PETS = [
   legend('tiger', '🐯', '수호 호랑이', '마을을 지키는 산의 왕이에요.', 'green', '마을 지키기'),
   legend('lion', '🦁', '황금 사자', '용기 있는 친구를 알아봐요.', 'yellow', '용기 있는 친구'),
   legend('shark', '🦈', '바다 왕 상어', '깊은 바다의 보물을 지켜요.', 'blue', '깊은 바다 보물'),
+  // 디바인: 빛깔 땅의 수호신 (회색 마을 빼고 땅마다 한 마리)
+  divine('dove', '🕊️', '평화의 비둘기', '착한 마음이 모인 곳에 내려앉는 하얀 비둘기예요. 장미 정원의 수호신이에요.', 'red', '다정한 말 한마디'),
+  divine('skyhorse', '🐎', '노을 천마', '노을빛 갈기를 휘날리며 하늘을 달려요. 노을 언덕의 수호신이에요.', 'orange', '바람을 가르며 달리기'),
+  divine('elephant', '🐘', '햇살 코끼리', '긴 코로 햇살을 모아 들판에 뿌려 줘요. 해바라기 들판의 수호신이에요.', 'yellow', '해바라기 샤워'),
+  divine('deer', '🦌', '숲의 정령 사슴', '뿔에서 꽃과 새싹이 자라요. 속삭이는 숲의 수호신이에요.', 'green', '새싹 돌보기'),
+  divine('seagod', '🐋', '바다신 고래', '노래 한 곡으로 거친 파도를 잠재워요. 반짝 바다의 수호신이에요.', 'blue', '깊은 바다의 노래'),
+  divine('whitetiger', '🐅', '별빛 백호', '옛이야기 속 하얀 호랑이 수호신이에요. 별빛 산을 지켜요.', 'indigo', '밤하늘 지키기'),
+  divine('kirin', '🦒', '구름 기린', '옛이야기에서 기린이 나타나면 좋은 일이 생긴대요. 라벤더 계곡의 수호신이에요.', 'purple', '구름 위 산책'),
+  divine('shadowfriend', '👻', '무지개 그림자', '외로워서 색을 훔쳤던 회색 그림자가 친구가 되어 무지갯빛을 찾았어요. 구름 섬의 수호신이에요.', 'rainbow', '친구랑 같이 놀기'),
 ];
 
 export const getPet = (id) => PETS.find((p) => p.id === id);
 
 /** 알에서 그 등급이 나올 확률을 아이가 알기 쉬운 말로 */
 export function chanceWord(percent) {
+  if (percent >= 100) return '꼭 나와요';
   if (percent >= 40) return '잘 나와요';
   if (percent >= 15) return '가끔 나와요';
-  if (percent > 0) return '드물게 나와요';
+  if (percent >= 5) return '드물게 나와요';
+  if (percent > 0) return '아주 드물게 나와요';
   return '안 나와요';
 }

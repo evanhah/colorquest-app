@@ -103,13 +103,26 @@ const CELEBRATIONS = {
     const pet = getPet(c.pet);
     if (!pet) return okButton();
     const rarity = RARITY[pet.rarity];
-    return `<div class="hatch"><span class="egg egg-${c.egg}">🥚</span><span class="pet-pop">${pet.emoji}</span></div>
-      <p class="kicker">${c.isNew ? '새 친구가 태어났어요!' : '또 만났어요!'}</p>
+    const divine = pet.rarity === 'divine';
+    return `<div class="hatch ${divine ? 'divine' : ''}">${divine ? '<span class="rays"></span>' : ''}<span class="egg egg-${c.egg}">🥚</span><span class="pet-pop">${pet.emoji}</span></div>
+      ${divine ? '<p class="kicker">✨ <span class="divine-text">DIVINE</span> ✨</p>' : ''}
+      <p class="kicker">${c.isNew ? (divine ? '수호신이 깨어났어요!' : '새 친구가 태어났어요!') : '또 만났어요!'}</p>
       <h2>${esc(pet.name)}</h2>
       <p class="rarity r-${pet.rarity}">${rarity.stars} ${rarity.name}</p>
       <p>${esc(pet.desc)}</p>
       ${c.isNew ? '' : `<p class="muted">친밀도가 올라갔어요 (×${s.pets[pet.id]?.count || 1})</p>`}
       ${okButton()}`;
+  },
+
+  // 새 빛깔 땅에 처음 도착했을 때 받는 수호 알
+  divineEgg: (s, c) => {
+    const rank = RANKS.find((r) => r.id === c.land);
+    return `<div class="hatch divine"><span class="rays"></span><span class="egg egg-divine still">🥚</span></div>
+      <p class="kicker">✨ <span class="divine-text">디바인 알 발견!</span> ✨</p>
+      <h2>${rank.placeIcon} ${esc(rank.place)}의 수호 알</h2>
+      <p>새 땅에 처음 도착한 용사만 받을 수 있는 알이에요. 이 땅을 지키는 수호신이 잠들어 있대요!</p>
+      <button class="btn big" data-action="celebrate-hatch" data-egg="divine">지금 부화시키기</button>
+      <button class="btn ghost" data-action="celebrate-ok">나중에</button>`;
   },
 
   key: (s, c) => {
@@ -167,8 +180,9 @@ function petInfo(s, id) {
   const have = s.pets[pet.id];
   const rarity = RARITY[pet.rarity];
   const home = RANKS.find((r) => r.id === pet.home);
-  const eggs = Object.entries(EGGS).map(([eggId, egg]) => {
-    const odd = egg.odds[pet.rarity];
+  // 디바인 알은 수호신만 나오므로 디바인 펫 정보창에만 보여 준다
+  const eggs = Object.entries(EGGS).filter(([eggId]) => eggId !== 'divine' || pet.rarity === 'divine').map(([eggId, egg]) => {
+    const odd = egg.odds[pet.rarity] || 0;
     return `<li class="${odd ? '' : 'none'}"><span class="egg egg-${eggId}">🥚</span><span>${egg.name}</span>
       <b>${chanceWord(odd)}</b><small>${rarity.name} 펫 ${odd}%</small></li>`;
   }).join('');
@@ -177,10 +191,11 @@ function petInfo(s, id) {
   else if (s.hero.companion === pet.id) foot = '<p class="done-note">지금 함께 다니고 있어요</p>';
   else foot = `<button class="btn big" data-action="companion" data-id="${pet.id}">함께 다니기</button>`;
   return `${closeButton}
-    <div class="pet-hero ${have ? '' : 'unmet'}">${pet.emoji}</div>
+    <div class="pet-hero ${have ? '' : 'unmet'} ${pet.rarity === 'divine' ? 'divine' : ''}">${pet.emoji}</div>
     <p class="rarity r-${pet.rarity}">${rarity.stars} ${rarity.name}</p>
     <h2>${esc(pet.name)}</h2>
     <p>${esc(pet.desc)}</p>
+    ${pet.rarity === 'divine' ? `<p class="divine-note">✨ ${esc(home.place)}에 처음 도착하면 받는 수호 알에서 꼭 나와요</p>` : ''}
     <dl class="pet-facts">
       <dt>좋아하는 것</dt><dd>${esc(pet.likes)}</dd>
       <dt>사는 곳</dt><dd>${home.placeIcon} ${esc(home.place)}</dd>
@@ -219,7 +234,7 @@ function landInfo(s, id) {
     ${reached ? '' : `<p class="unmet-note">🔒 Lv.${rank.from}에 ${esc(rank.name)}${josa(rank.name, '을', '를')} 되찾으면 들어갈 수 있어요</p>`}
     <h4>여기 사는 펫</h4>
     <div class="mini-pets">${PETS.filter((p) => p.home === rank.id).map((p) =>
-      `<button class="mini-pet ${s.pets[p.id] ? '' : 'unknown'}" data-action="pet-info" data-id="${p.id}" aria-label="${s.pets[p.id] ? esc(p.name) : '못 만난 펫'}"><span>${p.emoji}</span></button>`).join('')}</div>
+      `<button class="mini-pet ${s.pets[p.id] ? '' : 'unknown'} ${p.rarity === 'divine' ? 'divine' : ''}" data-action="pet-info" data-id="${p.id}" aria-label="${s.pets[p.id] ? esc(p.name) : '못 만난 펫'}"><span>${p.emoji}</span></button>`).join('')}</div>
     <h4>마을 사람</h4>
     <div class="villager-list">${villagersOf(rank.id).map((v) => (met.includes(v.id)
       ? `<button class="villager-row" data-action="villager-info" data-id="${v.id}"><span>${v.emoji}</span><b>${esc(v.name)}</b><small>이야기 다시 읽기</small></button>`

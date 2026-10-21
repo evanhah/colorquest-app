@@ -28,7 +28,7 @@ export function render() {
           <small>퀘스트를 하면 알이 따뜻해져요 · ${s.egg.warmth}/${s.egg.need}</small>
         </div>
       </div>
-      <p class="muted small">히든 퀘스트를 발견하면 황금 알, 비밀의 방을 열면 무지개 알을 받아요.</p>
+      <p class="muted small">히든 퀘스트를 발견하면 황금 알, 비밀의 방을 열면 무지개 알, 새 빛깔 땅에 도착하면 ✨디바인 알을 받아요.</p>
     </section>
 
     ${buddy ? `<section class="card buddy">
@@ -38,12 +38,14 @@ export function render() {
     </section>` : ''}
 
     <h3 class="section-title">도감 <small class="muted">${owned} / ${PETS.length}</small></h3>
-    ${['legend', 'rare', 'common'].map((rarity) => `
+    ${['divine', 'legend', 'rare', 'common'].map((rarity) => `
       <h4 class="rarity r-${rarity}">${RARITY[rarity].stars} ${RARITY[rarity].name}</h4>
+      ${rarity === 'divine' ? '<p class="muted small">빛깔 땅마다 사는 수호신이에요. 새 땅에 처음 도착하면 그 땅의 수호 알(디바인 알)을 받아요. 무지개·황금 알에서도 아주 드물게 나와요.</p>' : ''}
       <div class="pet-grid">${PETS.filter((p) => p.rarity === rarity).map((p) => {
         const have = s.pets[p.id];
-        if (!have) return `<button class="pet unknown" data-action="pet-info" data-id="${p.id}"><span class="pet-emoji">${p.emoji}</span><b>???</b></button>`;
-        return `<button class="pet ${s.hero.companion === p.id ? 'on' : ''}" data-action="pet-info" data-id="${p.id}">
+        const cls = rarity === 'divine' ? 'divine' : '';
+        if (!have) return `<button class="pet unknown ${cls}" data-action="pet-info" data-id="${p.id}"><span class="pet-emoji">${p.emoji}</span><b>???</b></button>`;
+        return `<button class="pet ${cls} ${s.hero.companion === p.id ? 'on' : ''}" data-action="pet-info" data-id="${p.id}">
           <span class="pet-emoji">${p.emoji}</span><b>${esc(p.name)}</b>${have.count > 1 ? `<small>×${have.count}</small>` : ''}</button>`;
       }).join('')}</div>`).join('')}`;
 }

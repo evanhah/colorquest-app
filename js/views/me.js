@@ -68,7 +68,7 @@ export function render() {
       <a class="card egg-card ${waiting ? 'ready' : ''}" href="#/pets">
         <span class="egg-icon">🥚</span>
         <div>
-          <b>${waiting ? `부화를 기다리는 알 ${waiting}개!` : '알을 품는 중'}</b>
+          <b>${s.eggsWaiting.includes('divine') ? '✨ 디바인 알이 기다려요!' : waiting ? `부화를 기다리는 알 ${waiting}개!` : '알을 품는 중'}</b>
           ${bar(s.egg.warmth / s.egg.need, '#fab005')}
           <small>퀘스트를 하면 알이 따뜻해져요 (${s.egg.warmth}/${s.egg.need})</small>
         </div>
