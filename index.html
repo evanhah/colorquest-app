@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#343a40">
+  <meta name="description" content="회색이 된 마을에 색을 되찾는 우리 가족 육아 RPG — 현실 퀘스트로 캐릭터와 함께 자라요">
+  <title>컬러 퀘스트</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="컬러퀘스트">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1 id="page-title">컬러 퀘스트</h1>
+    <a id="hero-chip" class="hero-chip" href="#/me" aria-label="나의 모험"></a>
+  </header>
+
+  <main id="app" aria-live="polite"></main>
+  <div id="overlay"></div>
+
+  <nav class="tabbar" aria-label="주요 메뉴" hidden>
+    <a href="#/me" data-tab="me"><i>🧒</i><span>나</span><b hidden></b></a>
+    <a href="#/quests/today" data-tab="quests"><i>📜</i><span>퀘스트</span><b hidden></b></a>
+    <a href="#/pets" data-tab="pets"><i>🥚</i><span>알·펫</span><b hidden></b></a>
+    <a href="#/party" data-tab="party"><i>🛡️</i><span>파티</span><b hidden></b></a>
+    <a href="#/parent" data-tab="parent"><i>🔒</i><span>부모</span><b hidden></b></a>
+  </nav>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
