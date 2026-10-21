@@ -17,16 +17,17 @@ export const TITLES = {
 };
 
 // 빛깔 단계. from 레벨에 도달하면 그 색을 되찾는다. ui 는 앱 강조색(버튼 등)으로 쓰는 색.
+// place 는 그 색의 땅 이름(펫이 사는 곳 — pets.js home).
 export const RANKS = [
-  { id: 'gray', from: 1, name: '회색', color: '#868e96', ui: '#343a40', restore: '' },
-  { id: 'red', from: 5, name: '빨강', color: '#e03131', ui: '#e03131', restore: '빨강을 되찾았어요! 지붕과 꽃이 다시 빨개졌어요.' },
-  { id: 'orange', from: 8, name: '주황', color: '#f76707', ui: '#e8590c', restore: '주황을 되찾았어요! 해가 다시 주황빛으로 빛나요.' },
-  { id: 'yellow', from: 11, name: '노랑', color: '#fab005', ui: '#e67700', restore: '노랑을 되찾았어요! 창문에 노란 불빛이 켜지고 해바라기가 피었어요.' },
-  { id: 'green', from: 14, name: '초록', color: '#2f9e44', ui: '#2b8a3e', restore: '초록을 되찾았어요! 풀밭과 나무가 초록으로 돌아왔어요.' },
-  { id: 'blue', from: 17, name: '파랑', color: '#1c7ed6', ui: '#1971c2', restore: '파랑을 되찾았어요! 하늘과 강이 파랗게 반짝여요.' },
-  { id: 'indigo', from: 20, name: '남색', color: '#3b5bdb', ui: '#364fc7', restore: '남색을 되찾았어요! 먼 산이 남색으로 물들었어요.' },
-  { id: 'purple', from: 25, name: '보라', color: '#9c36b5', ui: '#862e9c', restore: '보라를 되찾았어요! 문과 라벤더 꽃이 보랏빛이 됐어요.' },
-  { id: 'rainbow', from: 30, name: '무지개', color: '#7048e8', ui: '#6741d9', restore: '하늘에 무지개가 떴어요! 회색 마을이 모든 색을 되찾았어요.' },
+  { id: 'gray', from: 1, name: '회색', place: '회색 마을', placeIcon: '🏘️', color: '#868e96', ui: '#343a40', restore: '' },
+  { id: 'red', from: 5, name: '빨강', place: '장미 정원', placeIcon: '🌹', color: '#e03131', ui: '#e03131', restore: '빨강을 되찾았어요! 지붕과 꽃이 다시 빨개졌어요.' },
+  { id: 'orange', from: 8, name: '주황', place: '노을 언덕', placeIcon: '🌄', color: '#f76707', ui: '#e8590c', restore: '주황을 되찾았어요! 해가 다시 주황빛으로 빛나요.' },
+  { id: 'yellow', from: 11, name: '노랑', place: '해바라기 들판', placeIcon: '🌻', color: '#fab005', ui: '#e67700', restore: '노랑을 되찾았어요! 창문에 노란 불빛이 켜지고 해바라기가 피었어요.' },
+  { id: 'green', from: 14, name: '초록', place: '속삭이는 숲', placeIcon: '🌳', color: '#2f9e44', ui: '#2b8a3e', restore: '초록을 되찾았어요! 풀밭과 나무가 초록으로 돌아왔어요.' },
+  { id: 'blue', from: 17, name: '파랑', place: '반짝 바다', placeIcon: '🌊', color: '#1c7ed6', ui: '#1971c2', restore: '파랑을 되찾았어요! 하늘과 강이 파랗게 반짝여요.' },
+  { id: 'indigo', from: 20, name: '남색', place: '별빛 산', placeIcon: '⛰️', color: '#3b5bdb', ui: '#364fc7', restore: '남색을 되찾았어요! 먼 산이 남색으로 물들었어요.' },
+  { id: 'purple', from: 25, name: '보라', place: '라벤더 계곡', placeIcon: '💜', color: '#9c36b5', ui: '#862e9c', restore: '보라를 되찾았어요! 문과 라벤더 꽃이 보랏빛이 됐어요.' },
+  { id: 'rainbow', from: 30, name: '무지개', place: '구름 섬', placeIcon: '☁️', color: '#7048e8', ui: '#6741d9', restore: '하늘에 무지개가 떴어요! 회색 마을이 모든 색을 되찾았어요.' },
 ];
 
 // 레벨 해금: 레벨이 오를수록 '믿음'이 커져서 할 수 있는 일이 늘어난다. 돈·게임 시간이 아니라 권한과 책임.

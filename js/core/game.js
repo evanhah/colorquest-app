@@ -21,12 +21,21 @@ export const valueOf = (s, id) => s.values.find((v) => v.id === id);
 export const priorityOf = (s, valueId) => valueOf(s, valueId)?.priority ?? 0;
 const weightOf = (s, valueId) => PRIORITY[priorityOf(s, valueId)]?.weight ?? 0;
 
-/** 기본 퀘스트 + 부모가 더한 퀘스트. stat 은 속한 가치에서 정해진다. */
+/** 기본 퀘스트 + 부모가 더한 퀘스트. stat 은 부모가 정했으면 그것, 아니면 속한 가치의 스탯. */
 export function questList(s) {
   return [
     ...QUESTS.map((q) => ({ ...q, builtIn: true, off: s.offQuests.includes(q.id) })),
     ...s.customQuests.map((q) => ({ ...q, builtIn: false, off: false })),
-  ].map((q) => ({ ...q, stat: valueOf(s, q.value)?.stat || 'heart' }));
+  ].map((q) => ({ ...q, stat: q.stat || valueOf(s, q.value)?.stat || 'heart' }));
+}
+
+/** 부모가 경험치를 정한 퀘스트의 스탯 증가: 경험치 10마다 +1 (1~5) */
+export const statGainFor = (xp) => Math.min(5, Math.max(1, Math.round(xp / 10)));
+
+/** 항목(오늘 항목·주간 미션)의 보상. 부모가 정한 경험치(xp)가 있으면 그것을, 없으면 종류별 기본값. */
+export function rewardFor(item) {
+  const base = REWARD[item.type] || REWARD.weekly; // streak·lesson 은 주간 미션 보상
+  return item.xp ? { ...base, xp: item.xp, n: statGainFor(item.xp) } : base;
 }
 export const getQuest = (s, id) => questList(s).find((q) => q.id === id);
 export const getRoutine = (s, id) => s.routines.find((r) => r.id === id);
@@ -39,9 +48,9 @@ export const routinesOn = (s, date) => s.routines.filter((r) => r.on && r.days.i
 /** 오늘 화면 항목 하나의 정보 (매일 하는 일 · 오늘의 퀘스트 · 오늘의 도전) */
 export function dayItem(s, id) {
   const r = getRoutine(s, id);
-  if (r) return { id, type: 'routine', text: r.text, stat: r.stat, icon: r.icon };
+  if (r) return { id, type: 'routine', text: r.text, stat: r.stat, icon: r.icon, xp: r.xp };
   const q = getQuest(s, id);
-  if (q) return { id, type: q.kind === 'challenge' ? 'challenge' : 'daily', text: q.text, stat: q.stat };
+  if (q) return { id, type: q.kind === 'challenge' ? 'challenge' : 'daily', text: q.text, stat: q.stat, xp: q.xp };
   return null;
 }
 
@@ -58,11 +67,11 @@ function freshness(s, key, date, unit) {
 }
 
 /**
- * 후보 중 count 개를 뽑는다. 가중치 = 가치 우선순위 × 최근에 안 나온 정도.
+ * 후보 중 count 개를 뽑는다. 가중치 = 가치 우선순위 × 최근에 안 나온 정도 (부모가 만든 퀘스트는 1.5배).
  * 하나를 뽑으면 같은 가치(spreadBy)의 다른 후보는 확률을 크게 낮춰 하루에 골고루 나오게 한다.
  */
 function pick(s, candidates, count, rand, date, { unit = 1, spreadBy = 'value' } = {}) {
-  const weight = new Map(candidates.map((q) => [q.id, weightOf(s, q.value) * freshness(s, q.id, date, unit)]));
+  const weight = new Map(candidates.map((q) => [q.id, weightOf(s, q.value) * freshness(s, q.id, date, unit) * (q.builtIn ? 1 : 1.5)]));
   const chosen = [];
   for (let i = 0; i < count; i += 1) {
     const q = weightedPick(candidates.filter((c) => !chosen.includes(c)), (c) => weight.get(c.id), rand);
@@ -134,7 +143,7 @@ export function completeDay(s, id, date = dateKey()) {
   const item = dayItem(s, id);
   if (!day || !item || day.done[id]) return null;
   day.done[id] = true;
-  const r = REWARD[item.type];
+  const r = rewardFor(item);
   grant(s, { xp: r.xp, stat: item.stat, n: r.n, text: dayText(item) });
   if (item.type === 'routine') checkStreak(s, id, date);
   return { xp: r.xp, stat: item.stat, n: r.n };
@@ -146,8 +155,15 @@ export function undoDay(s, id, date = dateKey()) {
   const item = dayItem(s, id);
   if (!day?.done[id] || !item) return;
   delete day.done[id];
-  const r = REWARD[item.type];
+  const r = rewardFor(item);
   revoke(s, { xp: r.xp, stat: item.stat, n: r.n, text: dayText(item) });
+}
+
+/** 부모가 방금 만든 퀘스트를 오늘의 퀘스트에 바로 넣는다 */
+export function addToToday(s, id, date = dateKey()) {
+  const day = s.days[date];
+  if (day && !day.quests.includes(id)) day.quests.push(id);
+  s.lastSeen[id] = date;
 }
 
 export function pickChallenge(s, id, date = dateKey()) {
@@ -241,10 +257,9 @@ export function missionInfo(s, id, monday = weekKey()) {
     return story ? { id, type: 'story', icon: '📖', text: `이야기 퀘스트: ${story.title}`, stat: 'heart', story } : null;
   }
   const q = getQuest(s, id);
-  return q ? { id, type: q.coop ? 'coop' : 'weekly', icon: q.coop ? '🤝' : '⭐', text: q.text, stat: q.stat } : null;
+  return q ? { id, type: q.coop ? 'coop' : 'weekly', icon: q.coop ? '🤝' : '⭐', text: q.text, stat: q.stat, xp: q.xp } : null;
 }
 
-const missionReward = (info) => REWARD[info.type === 'coop' || info.type === 'story' ? info.type : 'weekly'];
 
 export const missionsOf = (s, week) => week.missions.map((id) => missionInfo(s, id)).filter(Boolean);
 export const keysOf = (week) => week.missions.filter((id) => week.status[id]?.state === 'done').length;
@@ -274,7 +289,7 @@ export function finishMission(s, monday, id, partner = null) {
   if (!week || !info || week.status[id]?.state === 'done') return;
   const withWho = partner ?? week.status[id]?.with ?? null;
   week.status[id] = { state: 'done', with: withWho, date: dateKey() };
-  const r = missionReward(info);
+  const r = rewardFor(info);
   const grants = [{ xp: r.xp, stat: info.stat, n: r.n, text: `주간 미션: ${info.text}` }];
   if (withWho && r.partnerXp) grants.push({ who: withWho, xp: r.partnerXp, text: `함께한 미션: ${info.text}` });
   rewardWith(s, { type: 'key', text: info.text, monday }, ...grants);

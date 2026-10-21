@@ -2,11 +2,12 @@
 // 축하는 state.celebrations 에 쌓였다가 하나씩 보여 준다. 부모 모드 화면에서는 띄우지 않고 아이가 볼 때 보여 준다.
 
 import { store, ui } from '../state.js';
-import { esc, josa } from '../core/util.js';
+import { esc, josa, formatDate } from '../core/util.js';
 import { titleOf, rankOf, rankIndexOf, privilegesAt, parentTitleOf } from '../core/level.js';
 import { allHidden, getStory, keysOf, keysNeeded } from '../core/game.js';
 import { getStat } from '../data/stats.js';
-import { getPet, RARITY } from '../data/pets.js';
+import { getPet, RARITY, EGGS, chanceWord } from '../data/pets.js';
+import { RANKS } from '../data/titles.js';
 import { REWARD } from '../data/quests.js';
 import { KID_PRAISE_PRESETS, PARENT_IDS } from '../data/parents.js';
 import { worldSvg } from './world.js';
@@ -24,7 +25,7 @@ const closeButton = '<button class="close" data-action="modal-close" aria-label=
 export function overlayHtml(route) {
   const s = store.get();
   if (!s.setupDone) return '';
-  if (ui.modal) return wrap(modal(s, ui.modal), 'sheet');
+  if (ui.modal) return wrap(modal(s, ui.modal), ui.modal.type === 'pet' ? 'sheet pet-sheet' : 'sheet');
   if (route.name !== 'parent' && s.celebrations.length) return wrap(celebration(s, s.celebrations[0]), 'party');
   return '';
 }
@@ -126,7 +127,39 @@ const CELEBRATIONS = {
 
 // ── 창 ──
 
+/** 펫 정보창: 아직 못 만난 펫은 회색으로(만나면 색이 생긴다), 정보는 모두 보여 준다 */
+function petInfo(s, id) {
+  const pet = getPet(id);
+  if (!pet) return closeButton;
+  const have = s.pets[pet.id];
+  const rarity = RARITY[pet.rarity];
+  const home = RANKS.find((r) => r.id === pet.home);
+  const eggs = Object.entries(EGGS).map(([eggId, egg]) => {
+    const odd = egg.odds[pet.rarity];
+    return `<li class="${odd ? '' : 'none'}"><span class="egg egg-${eggId}">🥚</span><span>${egg.name}</span>
+      <b>${chanceWord(odd)}</b><small>${rarity.name} 펫 ${odd}%</small></li>`;
+  }).join('');
+  let foot;
+  if (!have) foot = '<p class="unmet-note">아직 못 만났어요. 퀘스트로 알을 데워 부화시키면 만날 수 있어요!</p>';
+  else if (s.hero.companion === pet.id) foot = '<p class="done-note">지금 함께 다니고 있어요</p>';
+  else foot = `<button class="btn big" data-action="companion" data-id="${pet.id}">함께 다니기</button>`;
+  return `${closeButton}
+    <div class="pet-hero ${have ? '' : 'unmet'}">${pet.emoji}</div>
+    <p class="rarity r-${pet.rarity}">${rarity.stars} ${rarity.name}</p>
+    <h2>${esc(pet.name)}</h2>
+    <p>${esc(pet.desc)}</p>
+    <dl class="pet-facts">
+      <dt>좋아하는 것</dt><dd>${esc(pet.likes)}</dd>
+      <dt>사는 곳</dt><dd>${home.placeIcon} ${esc(home.place)}</dd>
+      ${have ? `<dt>처음 만난 날</dt><dd>${formatDate(have.first)}</dd><dt>만난 횟수</dt><dd>${have.count}번</dd>` : ''}
+    </dl>
+    <h4>어떤 알에서 나와요?</h4>
+    <ul class="egg-odds">${eggs}</ul>
+    ${foot}`;
+}
+
 function modal(s, m) {
+  if (m.type === 'pet') return petInfo(s, m.id);
   if (m.type === 'story') {
     const story = getStory(m.id);
     if (!story) return closeButton;

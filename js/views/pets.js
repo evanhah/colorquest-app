@@ -1,6 +1,6 @@
 // 알·펫 도감: 부화를 기다리는 알, 품고 있는 알, 함께 다니는 펫, 도감(아직 못 만난 펫은 그림자).
 
-import { store } from '../state.js';
+import { store, ui } from '../state.js';
 import { esc, toast, josa } from '../core/util.js';
 import { hatch } from '../core/game.js';
 import { PETS, EGGS, RARITY, getPet } from '../data/pets.js';
@@ -34,7 +34,7 @@ export function render() {
     ${buddy ? `<section class="card buddy">
       <span class="pet-emoji big">${buddy.emoji}</span>
       <div><small class="muted">함께 다니는 펫</small><h3>${esc(buddy.name)}</h3><p>${esc(buddy.desc)}</p>
-      <small class="muted">도감에서 다른 펫을 누르면 바꿀 수 있어요.</small></div>
+      <small class="muted">도감에서 펫을 누르면 정보를 보고, 함께 다닐 펫을 바꿀 수 있어요.</small></div>
     </section>` : ''}
 
     <h3 class="section-title">도감 <small class="muted">${owned} / ${PETS.length}</small></h3>
@@ -42,15 +42,21 @@ export function render() {
       <h4 class="rarity r-${rarity}">${RARITY[rarity].stars} ${RARITY[rarity].name}</h4>
       <div class="pet-grid">${PETS.filter((p) => p.rarity === rarity).map((p) => {
         const have = s.pets[p.id];
-        if (!have) return `<div class="pet unknown"><span class="pet-emoji">${p.emoji}</span><b>???</b></div>`;
-        return `<button class="pet ${s.hero.companion === p.id ? 'on' : ''}" data-action="companion" data-id="${p.id}">
+        if (!have) return `<button class="pet unknown" data-action="pet-info" data-id="${p.id}"><span class="pet-emoji">${p.emoji}</span><b>???</b></button>`;
+        return `<button class="pet ${s.hero.companion === p.id ? 'on' : ''}" data-action="pet-info" data-id="${p.id}">
           <span class="pet-emoji">${p.emoji}</span><b>${esc(p.name)}</b>${have.count > 1 ? `<small>×${have.count}</small>` : ''}</button>`;
       }).join('')}</div>`).join('')}`;
 }
 
 export const actions = {
   hatch: (el) => store.update((s) => hatch(s, Number(el.dataset.index))),
+  // 도감에서 누르면 정보창 — 아직 못 만난 펫도 어떤 펫인지 볼 수 있다
+  'pet-info': (el) => {
+    ui.modal = { type: 'pet', id: el.dataset.id };
+    store.refresh();
+  },
   companion: (el) => {
+    ui.modal = null;
     store.update((s) => {
       s.hero.companion = el.dataset.id;
     });

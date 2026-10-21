@@ -3,10 +3,9 @@
 import { store } from '../state.js';
 import { esc, dateKey, weekKey, formatDate, toast, josa, shortDate } from '../core/util.js';
 import {
-  routinesOn, dayItem, dayProgress, completeDay, undoDay, pickChallenge,
+  routinesOn, dayItem, dayProgress, completeDay, undoDay, pickChallenge, rewardFor,
   missionsOf, keysOf, keysNeeded, vaultReady, routineCount, requestMission, cancelMission, openVault, allHidden,
 } from '../core/game.js';
-import { REWARD } from '../data/quests.js';
 import { getStat } from '../data/stats.js';
 import { PARENT_IDS } from '../data/parents.js';
 import { questRow, segTabs, keySlots, bar, empty, parentName, statTag } from '../ui/components.js';
@@ -31,7 +30,7 @@ function today(s) {
   const row = (id) => {
     const item = dayItem(s, id);
     if (!item) return '';
-    const r = REWARD[item.type];
+    const r = rewardFor(item);
     const done = !!day.done[id];
     return questRow({
       icon: item.icon, text: item.text, stat: item.stat, xp: r.xp, n: r.n, state: done ? 'done' : 'todo',
@@ -52,9 +51,10 @@ function today(s) {
   } else {
     challengeHtml = choices.length ? `<div class="choices">${choices.map((c) => {
       const st = getStat(c.stat);
+      const r = rewardFor(c);
       return `<button class="choice" data-action="challenge-pick" data-id="${c.id}" style="--c:${st.color}">
         <span class="choice-icon">${st.icon}</span><b>${esc(c.text)}</b>
-        <small>+${REWARD.challenge.xp} XP · ${st.name} +${REWARD.challenge.n}</small></button>`;
+        <small>+${r.xp} XP · ${st.name} +${r.n}</small></button>`;
     }).join('')}</div>` : empty('오늘은 도전이 없어요.');
   }
 
@@ -110,7 +110,7 @@ function week(s) {
       right = `<button class="btn" data-action="mission-request" data-id="${m.id}">다 했어요!</button>`;
     }
     const note = `<span class="tag kind">${TYPE_LABEL[m.type]}</span>${withName ? `<span class="tag">${esc(withName)}${josa(withName, '과', '와')} 함께</span>` : ''}`;
-    const r = REWARD[m.type === 'coop' || m.type === 'story' ? m.type : 'weekly'];
+    const r = rewardFor(m);
     return questRow({ icon: m.icon, text: m.text, stat: m.stat, xp: r.xp, n: r.n, state, note, right, extra });
   }).join('');
 

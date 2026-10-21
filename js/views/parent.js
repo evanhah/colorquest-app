@@ -6,7 +6,7 @@ import { store, ui, backupText, toggleIn } from '../state.js';
 import { esc, dateKey, weekKey, formatDate, daysBetween, toast, confirmTap, copyText, uid, josa, WEEKDAYS } from '../core/util.js';
 import {
   missionsOf, finishMission, cancelMission, givePraise, allHidden, findHidden,
-  questList, valueOf, valueShares, rerollDay, rerollWeek,
+  questList, valueOf, valueShares, rerollDay, rerollWeek, statGainFor, addToToday,
 } from '../core/game.js';
 import { STATS, EPITHET_ORDER, getStat } from '../data/stats.js';
 import { PRIORITY } from '../data/values.js';
@@ -19,11 +19,11 @@ import { prepareRestore } from '../ui/actions.js';
 
 const back = '<a class="back" href="#/parent">← 부모 모드</a>';
 
-/** 고르기 칩. 고른 값은 ui.drafts[key] 에 기억한다(data-action="pick-draft"). */
-function chips(items, key, fallback) {
+/** 고르기 칩. 고른 값은 ui.drafts[key] 에 기억한다(기본 data-action="pick-draft"). */
+function chips(items, key, fallback, action = 'pick-draft') {
   const current = ui.drafts[key] ?? fallback;
   return `<div class="chips">${items.map(([value, label]) =>
-    `<button class="chip ${current === value ? 'on' : ''}" data-action="pick-draft" data-key="${key}" data-value="${value}">${label}</button>`).join('')}</div>`;
+    `<button class="chip ${current === value ? 'on' : ''}" data-action="${action}" data-key="${key}" data-value="${value}">${label}</button>`).join('')}</div>`;
 }
 const whoChips = (s, key) => chips(PARENT_IDS.map((who) => [who, `${esc(s.parents[who].avatar)} ${esc(s.parents[who].name)}`]), key, 'dad');
 const statChips = (key, fallback) => chips(STATS.map((st) => [st.id, `${st.icon} ${st.name}`]), key, fallback);
@@ -47,6 +47,7 @@ function pinGate() {
 
 const MENU = [
   ['praise', '💌', '칭찬 카드 쓰기', () => '본 것 + 누가 어떤 기분이었는지'],
+  ['make', '✏️', '퀘스트 만들기', () => '경험치·능력치를 직접 정해서 만들어요'],
   ['hidden', '✨', '히든 퀘스트 발견', (s) => `발견 ${allHidden(s).filter((h) => s.hidden[h.id]).length}/${allHidden(s).length}`],
   ['values', '🎯', '중점 가치·퀘스트', () => '중요한 가치일수록 자주 나와요'],
   ['routines', '📅', '매일 하는 일', (s) => s.routines.filter((r) => r.on).map((r) => r.text.replace(/하기$/, '')).join(' · ') || '없음'],
@@ -182,7 +183,7 @@ function valueRow(s, v, shares) {
     <button class="link" data-action="value-open" data-id="${v.id}">${open ? '접기 ▲' : '퀘스트 보기·더하기 ▼'}</button>
     ${open ? `<div class="value-quests">
       ${quests.map((q) => `<div class="qrow ${q.off ? 'off' : ''}">
-        <span class="tag kind">${KIND_LABEL[q.coop ? 'coop' : q.kind]}</span><span class="qtext">${esc(q.text)}</span>
+        <span class="tag kind">${KIND_LABEL[q.coop ? 'coop' : q.kind]}</span><span class="qtext">${esc(q.text)}</span>${q.xp ? `<span class="tag xp">+${q.xp}</span>` : ''}
         ${q.builtIn
           ? `<button class="btn ghost small" data-action="quest-toggle" data-id="${q.id}">${q.off ? '켜기' : '끄기'}</button>`
           : `<button class="btn ghost small" data-action="quest-delete" data-id="${q.id}">지우기</button>`}
@@ -223,6 +224,70 @@ function values(s) {
     <p class="muted small">다시 뽑아도 이미 한 퀘스트와 시작한 미션은 그대로 남아요.</p>`;
 }
 
+// ── 퀘스트 만들기 ──
+
+const MAKE_WHEN = [
+  ['every', '매일 꼭', "날마다 '매일 하는 일'에 나와요. 요일은 '매일 하는 일'에서 바꿀 수 있어요."],
+  ['daily', '오늘의 퀘스트', '다른 퀘스트와 돌아가며 나와요. 고른 가치가 중요할수록 자주 나와요.'],
+  ['challenge', '오늘의 도전', '아이가 고르는 도전 3개 중 하나로 돌아가며 나와요.'],
+  ['weekly', '주간 미션', '주간 미션 4개 중 하나로 돌아가며 나와요. 해내면 열쇠를 받아요.'],
+  ['coop', '함께하는 주간 미션', '아빠·엄마 중 한 명과 함께하는 주간 미션이에요. 함께한 부모도 경험치를 받아요.'],
+];
+const XP_STEPS = [5, 10, 15, 20, 30, 50];
+const DEFAULT_XP = { every: REWARD.routine.xp, daily: REWARD.daily.xp, challenge: REWARD.challenge.xp, weekly: REWARD.weekly.xp, coop: REWARD.coop.xp };
+
+/** 만들기 칸의 지금 값 (고르지 않은 칸은 알맞은 기본값) */
+function makeForm(s) {
+  const d = ui.drafts;
+  const when = d.makeWhen || 'daily';
+  const stat = d.makeStat || 'heart';
+  const xp = Number(d.makeXp) || DEFAULT_XP[when];
+  const value = (d.makeValue && valueOf(s, d.makeValue))
+    || s.values.find((v) => v.stat === stat && v.priority > 0) || s.values.find((v) => v.stat === stat) || s.values[0];
+  return { when, stat, xp, value, today: d.makeToday === '1' };
+}
+
+function make(s) {
+  const f = makeForm(s);
+  const st = getStat(f.stat);
+  const mine = questList(s).filter((q) => !q.builtIn);
+  return `${back}
+    <h2>✏️ 퀘스트 만들기</h2>
+    <div class="notice">우리 집만의 퀘스트를 직접 만들어요. 경험치와 자라는 능력치(항목)를 정할 수 있어요.
+      능력치는 경험치 10마다 +1씩 올라요(최대 +5). 9살에게는 매일 퀘스트 5~15, 큰 도전 20~30 정도가 알맞아요.</div>
+    <section class="card form">
+      <label>퀘스트 내용</label>
+      <input data-input="draft" data-key="makeText" placeholder="예: 할머니께 안부 문자 보내기" value="${esc(ui.drafts.makeText || '')}">
+      <label>언제 나오나요?</label>
+      ${chips(MAKE_WHEN.map(([k, label]) => [k, label]), 'makeWhen', f.when, 'make-pick')}
+      <p class="muted small">${MAKE_WHEN.find(([k]) => k === f.when)[2]}</p>
+      <label>어떤 능력치가 자라나요? (항목)</label>
+      ${chips(STATS.map((x) => [x.id, `${x.icon} ${x.name}`]), 'makeStat', f.stat, 'make-pick')}
+      <label>경험치</label>
+      <div class="xp-pick">
+        ${chips(XP_STEPS.map((n) => [String(n), `${n}`]), 'makeXp', String(f.xp), 'make-pick')}
+        <input type="number" min="1" max="100" inputmode="numeric" value="${f.xp}" data-change="make-xp" aria-label="경험치 직접 입력">
+      </div>
+      <p class="preview">완료하면 <b>+${f.xp} XP</b> · ${st.icon} ${st.name} <b>+${statGainFor(f.xp)}</b></p>
+      ${f.when === 'every' ? '' : `
+        <label>어느 가치에 넣을까요? <small class="muted">가치의 우선순위대로 자주 나와요</small></label>
+        <select data-change="make-value">${EPITHET_ORDER.map(getStat).map((x) => `<optgroup label="${x.icon} ${x.name}">${s.values.filter((v) => v.stat === x.id).map((v) =>
+          `<option value="${v.id}" ${v.id === f.value.id ? 'selected' : ''}>${esc(v.name)} (${PRIORITY[v.priority].name})</option>`).join('')}</optgroup>`).join('')}</select>
+        ${f.value.priority ? '' : "<p class=\"warn-text\">이 가치는 지금 '쉬기'라서 퀘스트가 나오지 않아요.</p>"}`}
+      ${f.when === 'daily' ? `<div class="chips"><button class="chip ${f.today ? 'on' : ''}" data-action="make-pick" data-key="makeToday" data-value="${f.today ? '' : '1'}">${f.today ? '✓ ' : ''}오늘 퀘스트에 바로 넣기</button></div>` : ''}
+      <button class="btn big" data-action="make-add">만들기</button>
+    </section>
+
+    <h3 class="section-title">우리가 만든 퀘스트</h3>
+    ${mine.length ? mine.map((q) => `<div class="made-row">
+      <div class="made-main"><b>${esc(q.text)}</b>
+        <div><span class="tag kind">${KIND_LABEL[q.coop ? 'coop' : q.kind]}</span>${statTag(q.stat)}<span class="tag xp">+${q.xp || REWARD[q.coop ? 'coop' : q.kind].xp} XP</span>
+        <small class="muted">${esc(valueOf(s, q.value)?.name || '')}</small></div></div>
+      <button class="btn ghost small" data-action="quest-delete" data-id="${q.id}">지우기</button>
+    </div>`).join('') : empty('아직 만든 퀘스트가 없어요.')}
+    <p class="muted small">'매일 꼭' 퀘스트는 '매일 하는 일'에서 요일·경험치를 바꾸거나 지울 수 있어요.</p>`;
+}
+
 // ── 매일 하는 일 ──
 
 function routines(s) {
@@ -238,6 +303,8 @@ function routines(s) {
       </div>
       <div class="days">${WEEKDAYS.map((d, i) => `<button class="day ${r.days.includes(i) ? 'on' : ''}" data-action="routine-day" data-id="${r.id}" data-day="${i}">${d}</button>`).join('')}</div>
       <div class="chips">${STATS.map((st) => `<button class="chip ${r.stat === st.id ? 'on' : ''}" data-action="routine-stat" data-id="${r.id}" data-value="${st.id}">${st.icon} ${st.name}</button>`).join('')}</div>
+      <div class="chips xp-row"><small class="muted">경험치</small>${XP_STEPS.map((n) =>
+        `<button class="chip ${(r.xp || REWARD.routine.xp) === n ? 'on' : ''}" data-action="routine-xp" data-id="${r.id}" data-n="${n}">${n}</button>`).join('')}</div>
       ${r.days.length < 4 ? `<label>주간 미션 문장</label><input class="inline" value="${esc(r.weekly || '')}" placeholder="예: 배운 기술 하나 가족에게 보여 주기" data-change="routine-weekly" data-id="${r.id}">` : ''}
       <button class="btn ghost small warn" data-action="routine-delete" data-id="${r.id}">지우기</button>
     </section>`).join('')}
@@ -322,6 +389,7 @@ function settings(s) {
 
 const SUB = {
   praise: { title: '칭찬 카드', render: praise },
+  make: { title: '퀘스트 만들기', render: make },
   hidden: { title: '히든 퀘스트', render: hidden },
   values: { title: '중점 가치', render: values },
   routines: { title: '매일 하는 일', render: routines },
@@ -472,6 +540,44 @@ export const actions = {
     store.refresh();
     toast('퀘스트를 더했어요');
   },
+  'make-pick': (el) => {
+    ui.drafts[el.dataset.key] = el.dataset.value;
+    if (el.dataset.key === 'makeStat') delete ui.drafts.makeValue; // 능력치를 바꾸면 가치도 그 능력치의 가치로
+    store.refresh();
+  },
+  'make-xp': (el) => {
+    const xp = Math.round(Number(el.value));
+    if (xp >= 1) ui.drafts.makeXp = String(Math.min(100, xp));
+    store.refresh();
+  },
+  'make-value': (el) => {
+    ui.drafts.makeValue = el.value;
+    store.refresh();
+  },
+  'make-add': () => {
+    const text = (ui.drafts.makeText || '').trim();
+    if (!text) {
+      toast('퀘스트 내용을 적어 주세요');
+      return;
+    }
+    const f = makeForm(store.get());
+    store.update((s) => {
+      if (f.when === 'every') {
+        s.routines.push({ id: uid('r'), text, icon: getStat(f.stat).icon, stat: f.stat, days: [0, 1, 2, 3, 4, 5, 6], on: true, xp: f.xp });
+        return;
+      }
+      const id = uid('u');
+      s.customQuests.push({
+        id, value: f.value.id, text, stat: f.stat, xp: f.xp,
+        ...(f.when === 'coop' ? { kind: 'weekly', coop: true } : { kind: f.when }),
+      });
+      if (f.when === 'daily' && f.today) addToToday(s, id);
+    });
+    ui.drafts.makeText = '';
+    ui.drafts.makeToday = '';
+    store.refresh();
+    toast(f.when === 'daily' && f.today ? '만들었어요! 오늘의 퀘스트에 들어갔어요.' : '만들었어요!');
+  },
   'reroll-day': () => {
     store.update((s) => rerollDay(s));
     toast('오늘 퀘스트를 다시 뽑았어요');
@@ -496,6 +602,9 @@ export const actions = {
     const r = findRoutine(s, el.dataset.id);
     toggleIn(r.days, Number(el.dataset.day));
     r.days.sort();
+  }),
+  'routine-xp': (el) => store.update((s) => {
+    findRoutine(s, el.dataset.id).xp = Number(el.dataset.n);
   }),
   'routine-stat': (el) => store.update((s) => {
     findRoutine(s, el.dataset.id).stat = el.dataset.value;

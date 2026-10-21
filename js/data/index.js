@@ -60,6 +60,8 @@ export function validateData() {
   PETS.forEach((p) => {
     unique(`pet:${p.id}`, '펫');
     if (!RARITY[p.rarity]) problems.push(`펫 ${p.id}: 등급 '${p.rarity}'`);
+    if (!RANKS.some((r) => r.id === p.home)) problems.push(`펫 ${p.id}: 없는 사는 곳 '${p.home}'`);
+    if (!p.likes) problems.push(`펫 ${p.id}: 좋아하는 것 없음`);
   });
   Object.entries(EGGS).forEach(([id, egg]) => {
     Object.entries(egg.odds).forEach(([rarity, odd]) => {
