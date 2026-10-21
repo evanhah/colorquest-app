@@ -9,6 +9,8 @@ import { STORIES } from './stories.js';
 import { PARENT_QUESTS, PARENT_QUESTS_PER_WEEK, PARENT_TITLES } from './parents.js';
 import { PETS, EGGS, RARITY } from './pets.js';
 import { TITLES, RANKS, DEFAULT_PRIVILEGES } from './titles.js';
+import { LANDS, VILLAGERS, CHEST_LINES } from './map.js';
+import { CONSTELLATIONS, STARS_PER_CONSTELLATION } from './sky.js';
 
 export function validateData() {
   const problems = [];
@@ -74,6 +76,20 @@ export function validateData() {
   });
   DEFAULT_PRIVILEGES.forEach((p) => {
     if (!(p.level > 1)) problems.push(`레벨 해금 '${p.text}': 레벨 오류`);
+  });
+  RANKS.forEach((r) => {
+    if (!LANDS[r.id]) problems.push(`지도: 땅 '${r.id}' 정보 없음`);
+    if (!r.place) problems.push(`빛깔 ${r.id}: 땅 이름 없음`);
+    if (VILLAGERS.filter((x) => x.land === r.id).length !== 3) problems.push(`지도: 땅 '${r.id}' 마을 사람이 3명이 아님`);
+  });
+  VILLAGERS.forEach((x) => {
+    unique(x.id, '마을 사람');
+    if (!x.story || !x.quote || !x.hint) problems.push(`마을 사람 ${x.id}: 이야기·한마디·힌트 빠짐`);
+  });
+  if (!CHEST_LINES.length) problems.push('지도: 보물 상자 문구 없음');
+  CONSTELLATIONS.forEach((c) => {
+    unique(c.id, '별자리');
+    if (c.points.length !== STARS_PER_CONSTELLATION) problems.push(`별자리 ${c.id}: 별 ${c.points.length}개`);
   });
   return problems;
 }

@@ -11,6 +11,11 @@ import { RANKS } from '../data/titles.js';
 import { REWARD } from '../data/quests.js';
 import { KID_PRAISE_PRESETS, PARENT_IDS } from '../data/parents.js';
 import { worldSvg } from './world.js';
+import { skySvg } from './sky.js';
+import { LANDS, CHEST_LINES, CHEST_WARMTH, getVillager, villagersOf } from '../data/map.js';
+import { CONSTELLATIONS, STARS_PER_CONSTELLATION, ALLCLEAR_WARMTH, skyState } from '../data/sky.js';
+import { PETS } from '../data/pets.js';
+import { fillStory, landIndexOf, tileOf, eventAt } from '../core/map.js';
 import { statTag, xpTag, parentName, keySlots } from './components.js';
 
 const COLORS = ['#fa5252', '#ff922b', '#fcc419', '#51cf66', '#339af0', '#4c6ef5', '#cc5de8'];
@@ -25,7 +30,7 @@ const closeButton = '<button class="close" data-action="modal-close" aria-label=
 export function overlayHtml(route) {
   const s = store.get();
   if (!s.setupDone) return '';
-  if (ui.modal) return wrap(modal(s, ui.modal), ui.modal.type === 'pet' ? 'sheet pet-sheet' : 'sheet');
+  if (ui.modal) return wrap(modal(s, ui.modal), ['pet', 'land', 'villager'].includes(ui.modal.type) ? 'sheet pet-sheet' : 'sheet');
   if (route.name !== 'parent' && s.celebrations.length) return wrap(celebration(s, s.celebrations[0]), 'party');
   return '';
 }
@@ -62,7 +67,8 @@ const CELEBRATIONS = {
     return `<p class="kicker">LEVEL UP!</p>
       <div class="lv-num">Lv.${c.level}</div>
       <p class="big-title">${esc(titleOf(c.level))}</p>
-      ${rankUp ? `<div class="restore">${worldSvg(rankIndexOf(c.level))}<p>${esc(rank.restore)}</p></div>` : ''}
+      ${rankUp ? `<div class="restore">${worldSvg(rankIndexOf(c.level))}<p>${esc(rank.restore)}</p>
+        <p>🗺️ 지도에서 <b>${rank.placeIcon} ${esc(rank.place)}</b>에 들어섰어요!</p></div>` : ''}
       ${unlocks.map((p) => `<div class="unlock">🔓 이제 할 수 있어요<b>${esc(p.text)}</b><small>아빠·엄마에게 말해 보세요</small></div>`).join('')}
       ${okButton()}`;
   },
@@ -118,6 +124,33 @@ const CELEBRATIONS = {
       ${okButton()}`;
   },
 
+  villager: (s, c) => {
+    const v = getVillager(c.id);
+    return v ? `${villagerCard(s, v)}<p class="kicker">${esc(v.name)}에게 색을 돌려줬어요!</p>${okButton()}` : okButton();
+  },
+
+  chest: (s, c) => `<div class="burst">🎁</div>
+    <p class="kicker">보물 상자를 열었어요!</p>
+    <p class="lead">${esc(fillStory(CHEST_LINES[c.line] || CHEST_LINES[0], s))}</p>
+    <p>🥚 알 온기 +${CHEST_WARMTH}</p>${okButton()}`,
+
+  // 일일 퀘스트를 모두 끝낸 날: 펫 축하 춤 + 밤하늘 별 하나 + 알 온기
+  allclear: (s, c) => {
+    const pet = getPet(s.hero.companion);
+    const finished = c.stars % STARS_PER_CONSTELLATION === 0;
+    const con = finished ? CONSTELLATIONS[(c.stars / STARS_PER_CONSTELLATION - 1) % CONSTELLATIONS.length] : skyState(c.stars).current;
+    const lit = finished ? STARS_PER_CONSTELLATION : c.stars % STARS_PER_CONSTELLATION;
+    return `<div class="dance">${pet ? pet.emoji : '⭐'}</div>
+      <p class="kicker">오늘 퀘스트 완료!</p>
+      <h2>${pet ? `${esc(pet.name)}${josa(pet.name, '이', '가')} 신나서 춤을 춰요!` : '오늘 퀘스트를 모두 해냈어요!'}</h2>
+      ${skySvg(con, lit)}
+      <p>${finished
+        ? `✨ <b>${con.icon} ${esc(con.name)}</b> 완성! 밤하늘에 별자리가 생겼어요.`
+        : `밤하늘에 별이 하나 켜졌어요 ⭐ <b>${con.icon} ${esc(con.name)}</b> ${lit}/${STARS_PER_CONSTELLATION}`}</p>
+      <p class="muted">🥚 ${pet ? `${esc(pet.name)}${josa(pet.name, '이', '가')}` : ''} 알을 꼭 안아 줬어요 (알 온기 +${ALLCLEAR_WARMTH})</p>
+      ${okButton()}`;
+  },
+
   vault: () => `<div class="burst">🚪</div>
     <p class="kicker">비밀의 방이 열렸어요!</p>
     <p>방 안에서 🌈 <b>무지개 알</b>을 찾았어요! 전설의 펫이 나올 확률이 높아요.</p>
@@ -158,8 +191,48 @@ function petInfo(s, id) {
     ${foot}`;
 }
 
+/** 마을 사람 이야기 (처음 만날 때 축하 창, 다시 읽을 때 창에서 같이 쓴다) */
+function villagerCard(s, v) {
+  const rank = RANKS.find((r) => r.id === v.land);
+  return `<div class="burst">${v.emoji}</div>
+    <p class="kicker">${rank.placeIcon} ${esc(rank.place)} · 마을 사람</p>
+    <h2>${esc(v.name)}</h2>
+    <p class="story-text">${esc(fillStory(v.story, s))}</p>
+    <blockquote>${esc(v.quote)}<cite>— ${esc(v.name)}</cite></blockquote>
+    <p class="hint-box">💡 ${esc(v.hint)}</p>`;
+}
+
+/** 만난 마을 사람 id (열어 본 마을 사람 칸에서) */
+const metVillagers = (s) => Object.keys(s.map.claimed).map((t) => eventAt(Number(t))).filter((ev) => ev?.type === 'villager').map((ev) => ev.id);
+
+/** 땅 정보창: 그 땅에 사는 펫(못 만난 펫은 그림자)과 마을 사람 */
+function landInfo(s, id) {
+  const i = RANKS.findIndex((r) => r.id === id);
+  const rank = RANKS[i];
+  if (!rank) return closeButton;
+  const reached = landIndexOf(tileOf(s.hero.xp)) >= i;
+  const met = metVillagers(s);
+  return `${closeButton}
+    <div class="land-hero ${rank.id === 'gray' ? 'mono' : ''}" style="--c:${rank.color}">${rank.placeIcon}</div>
+    <h2>${esc(rank.place)}</h2>
+    <p>${esc(LANDS[rank.id].desc)}</p>
+    ${reached ? '' : `<p class="unmet-note">🔒 Lv.${rank.from}에 ${esc(rank.name)}${josa(rank.name, '을', '를')} 되찾으면 들어갈 수 있어요</p>`}
+    <h4>여기 사는 펫</h4>
+    <div class="mini-pets">${PETS.filter((p) => p.home === rank.id).map((p) =>
+      `<button class="mini-pet ${s.pets[p.id] ? '' : 'unknown'}" data-action="pet-info" data-id="${p.id}" aria-label="${s.pets[p.id] ? esc(p.name) : '못 만난 펫'}"><span>${p.emoji}</span></button>`).join('')}</div>
+    <h4>마을 사람</h4>
+    <div class="villager-list">${villagersOf(rank.id).map((v) => (met.includes(v.id)
+      ? `<button class="villager-row" data-action="villager-info" data-id="${v.id}"><span>${v.emoji}</span><b>${esc(v.name)}</b><small>이야기 다시 읽기</small></button>`
+      : '<div class="villager-row unknown"><span>❔</span><b>아직 못 만났어요</b></div>')).join('')}</div>`;
+}
+
 function modal(s, m) {
   if (m.type === 'pet') return petInfo(s, m.id);
+  if (m.type === 'land') return landInfo(s, m.id);
+  if (m.type === 'villager') {
+    const v = getVillager(m.id);
+    return v ? closeButton + villagerCard(s, v) : closeButton;
+  }
   if (m.type === 'story') {
     const story = getStory(m.id);
     if (!story) return closeButton;

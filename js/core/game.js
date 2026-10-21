@@ -8,6 +8,7 @@ import { HIDDEN } from '../data/hidden.js';
 import { PARENT_QUESTS, PARENT_QUESTS_PER_WEEK, PARENT_IDS } from '../data/parents.js';
 import { PETS, EGGS, eggNeed } from '../data/pets.js';
 import { STRENGTH_BONUS } from '../data/stats.js';
+import { ALLCLEAR_WARMTH } from '../data/sky.js';
 import { levelInfo } from './level.js';
 import { dateKey, weekKey, addDays, daysBetween, seededRandom, weightedPick, weekdayOf, uid } from './util.js';
 
@@ -146,7 +147,24 @@ export function completeDay(s, id, date = dateKey()) {
   const r = rewardFor(item);
   grant(s, { xp: r.xp, stat: item.stat, n: r.n, text: dayText(item) });
   if (item.type === 'routine') checkStreak(s, id, date);
+  checkAllClear(s, date);
   return { xp: r.xp, stat: item.stat, n: r.n };
+}
+
+/**
+ * 그날 할 일(매일 하는 일·오늘의 퀘스트·고른 도전)을 모두 끝내면 하루에 한 번:
+ * 밤하늘에 별 하나 + 함께 다니는 펫의 축하 춤 + 알 온기. 되돌리기를 해도 별은 그대로(하루 한 번뿐이라 반복 이득 없음).
+ * 경험치를 크게 주지 않는 이유: 스스로 체크하는 퀘스트라 보상이 크면 안 한 것까지 체크하고 싶어진다.
+ */
+function checkAllClear(s, date) {
+  const day = s.days[date];
+  const { done, total } = dayProgress(s, date);
+  if (day.allClear || !total || done < total) return;
+  day.allClear = true;
+  s.stars.total += 1;
+  warmEgg(s, ALLCLEAR_WARMTH);
+  s.celebrations.push({ type: 'allclear', stars: s.stars.total });
+  addLog(s, { who: 'hero', text: '오늘 퀘스트를 모두 해내고 밤하늘에 별을 켰다', xp: 0 });
 }
 
 /** 실수로 누른 완료 되돌리기 (그날만) */
@@ -407,7 +425,8 @@ function revoke(s, { xp = 0, stat = null, n = 0, text }) {
   if (at >= 0) s.log.splice(at, 1);
 }
 
-function warmEgg(s, xp) {
+/** 알 데우기: 다 데워지면 부화를 기다리는 알이 된다(보물 상자·하루 완료 보너스도 여기로) */
+export function warmEgg(s, xp) {
   s.egg.warmth += xp;
   while (s.egg.warmth >= s.egg.need) {
     s.egg.warmth -= s.egg.need;

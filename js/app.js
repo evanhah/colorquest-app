@@ -9,16 +9,18 @@ import { sharedActions } from './ui/actions.js';
 import { overlayHtml } from './ui/overlay.js';
 import { validateData } from './data/index.js';
 import { needsPlan, ensurePlans, dayProgress, pendingCount } from './core/game.js';
+import { pendingEvents } from './core/map.js';
 import { levelInfo, rankOf } from './core/level.js';
 import { esc } from './core/util.js';
 import * as me from './views/me.js';
 import * as quests from './views/quests.js';
+import * as map from './views/map.js';
 import * as pets from './views/pets.js';
 import * as party from './views/party.js';
 import * as parent from './views/parent.js';
 import * as setup from './views/setup.js';
 
-const VIEWS = { me, quests, pets, party, parent };
+const VIEWS = { me, quests, map, pets, party, parent };
 
 const app = document.getElementById('app');
 const overlay = document.getElementById('overlay');
@@ -34,6 +36,7 @@ function parseRoute() {
 
 function setBadge(tab, count) {
   const badge = tabbar.querySelector(`[data-tab="${tab}"] b`);
+  if (!badge) return; // 오프라인에서 예전 index.html 이 열린 경우
   badge.hidden = !count;
   badge.textContent = count;
 }
@@ -47,6 +50,7 @@ function render() {
   current = { route, view };
 
   app.innerHTML = view.render(route);
+  view.after?.(route); // 그린 뒤에 할 일(지도 걷기 애니메이션)
   overlay.innerHTML = overlayHtml(route);
   document.body.classList.toggle('modal-open', Boolean(overlay.innerHTML));
   pageTitle.textContent = view.title(route);
@@ -64,6 +68,7 @@ function render() {
     tabbar.querySelectorAll('a').forEach((a) => a.classList.toggle('on', a.dataset.tab === route.name));
     const prog = dayProgress(s);
     setBadge('quests', prog.total - prog.done);
+    setBadge('map', pendingEvents(s).length);
     setBadge('pets', s.eggsWaiting.length);
     setBadge('parent', pendingCount(s));
   }

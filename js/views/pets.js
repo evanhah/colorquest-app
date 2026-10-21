@@ -1,7 +1,7 @@
 // 알·펫 도감: 부화를 기다리는 알, 품고 있는 알, 함께 다니는 펫, 도감(아직 못 만난 펫은 그림자).
 
-import { store, ui } from '../state.js';
-import { esc, toast, josa } from '../core/util.js';
+import { store } from '../state.js';
+import { esc } from '../core/util.js';
 import { hatch } from '../core/game.js';
 import { PETS, EGGS, RARITY, getPet } from '../data/pets.js';
 import { bar } from '../ui/components.js';
@@ -50,17 +50,5 @@ export function render() {
 
 export const actions = {
   hatch: (el) => store.update((s) => hatch(s, Number(el.dataset.index))),
-  // 도감에서 누르면 정보창 — 아직 못 만난 펫도 어떤 펫인지 볼 수 있다
-  'pet-info': (el) => {
-    ui.modal = { type: 'pet', id: el.dataset.id };
-    store.refresh();
-  },
-  companion: (el) => {
-    ui.modal = null;
-    store.update((s) => {
-      s.hero.companion = el.dataset.id;
-    });
-    const { name } = getPet(el.dataset.id);
-    toast(`${name}${josa(name, '과', '와')} 함께 다녀요!`);
-  },
+  // 펫을 누르면 정보창(pet-info), 함께 다니기(companion)는 ui/actions.js 공통 동작
 };

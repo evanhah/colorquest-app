@@ -312,6 +312,62 @@ summary { font-weight: 800; cursor: pointer; padding: 4px 0; }
 .egg-odds .egg { font-size: 22px; display: inline-block; }
 .unmet-note { background: #f1f3f5; border-radius: 12px; padding: 10px 12px; font-weight: 700; }
 
+/* ── 모험 지도 ── */
+.land-strip { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 10px; margin: 0 -2px 4px; scrollbar-width: none; }
+.land-strip::-webkit-scrollbar { display: none; }
+.land-chip {
+  flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 76px;
+  padding: 8px 8px 6px; border: 2.5px solid transparent; border-radius: 14px; background: #fff; box-shadow: var(--shadow);
+}
+.land-chip span { font-size: 24px; }
+.land-chip small { font-size: 12px; font-weight: 700; white-space: nowrap; }
+.land-chip.on { border-color: var(--c); background: color-mix(in srgb, var(--c) 10%, #fff); }
+.land-chip.locked { opacity: .5; }
+.map-card { background: #fff; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); margin-bottom: 14px; }
+.map-svg { display: block; width: 100%; height: auto; max-height: calc(100vh - 250px); margin: 0 auto; }
+.map-svg .road { fill: none; stroke: #e9dcc3; stroke-width: 22; stroke-linecap: round; stroke-linejoin: round; }
+.map-svg .ev.ahead { opacity: .75; }
+.map-svg .ev.ready { cursor: pointer; transform-box: fill-box; transform-origin: center; animation: pulse 1.1s ease-in-out infinite; }
+.map-svg .bang { fill: #fff; font-size: 12px; font-weight: 900; }
+.map-svg .gate-label { font-size: 13px; font-weight: 800; fill: #495057; paint-order: stroke; stroke: #fff; stroke-width: 4px; }
+.map-svg .decor { opacity: .85; }
+.map-svg .mono { filter: grayscale(1); opacity: .55; }
+.map-svg .resident { cursor: pointer; }
+.map-svg .resident.unknown { filter: brightness(0) opacity(.22); }
+.walker { transition: transform .25s ease-in-out; }
+.walker text { pointer-events: none; }
+.walker.hop text { animation: hop .25s ease-out; }
+.map-info h3 { margin: 0; }
+.map-info p { margin: 6px 0; }
+.next-list { list-style: none; padding: 0; margin: 10px 0; }
+.next-list li { padding: 6px 0; border-bottom: 1px dashed var(--line); }
+.next-list b { color: var(--accent); }
+.land-hero { font-size: 72px; line-height: 1.1; }
+.land-hero.mono { filter: grayscale(1); }
+.mini-pets { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.mini-pet { width: 54px; height: 54px; font-size: 32px; border: 0; border-radius: 14px; background: var(--bg); }
+.mini-pet.unknown span { filter: brightness(0) opacity(.2); }
+.villager-list { display: flex; flex-direction: column; gap: 8px; text-align: left; }
+.villager-row { display: flex; align-items: center; gap: 10px; border: 0; background: var(--bg); border-radius: 12px; padding: 10px 12px; font-size: 16px; text-align: left; }
+.villager-row span { font-size: 26px; }
+.villager-row b { flex: 1; }
+.villager-row small { color: var(--accent); font-weight: 700; }
+.villager-row.unknown { color: var(--muted); }
+.hint-box { background: #fff9db; border-radius: 12px; padding: 10px 12px; font-weight: 700; }
+
+/* ── 밤하늘 ── */
+.sky { display: block; width: 100%; max-width: 220px; margin: 8px auto; background: linear-gradient(#1b1f3b, #3b4890); border-radius: 16px; }
+.sky .dust { fill: #fff; opacity: .5; }
+.sky .dim { fill: #5c6488; }
+.sky .lit { fill: #ffe066; filter: drop-shadow(0 0 2px #ffe066); }
+.sky .sky-line { stroke: #ffe066; stroke-width: 1; opacity: .7; }
+.sky-card { display: flex; gap: 14px; align-items: center; }
+.sky-card .sky { width: 120px; flex: none; margin: 0; }
+.sky-card h3 { margin: 2px 0 4px; }
+.sky-card p { margin: 0 0 4px; font-size: 15px; }
+.constellations span { font-size: 20px; margin-left: 2px; }
+.dance { font-size: 80px; line-height: 1.1; display: inline-block; animation: dance .9s ease-in-out infinite; }
+
 /* ── 파티 ── */
 .party { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .party .card { margin-bottom: 0; }
@@ -483,6 +539,14 @@ blockquote cite, .letter cite { display: block; margin-top: 6px; font-size: 14px
 @keyframes shake { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
 @keyframes fall { to { transform: translateY(105vh) rotate(540deg); opacity: .2; } }
 @keyframes toastIn { from { transform: translate(-50%, 12px); opacity: 0; } }
+@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+@keyframes hop { 50% { transform: translateY(-6px); } }
+@keyframes dance {
+  0%, 100% { transform: rotate(0) translateY(0); }
+  25% { transform: rotate(-14deg) translateY(-12px); }
+  50% { transform: rotate(0) translateY(0) scale(1.08); }
+  75% { transform: rotate(14deg) translateY(-12px); }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }

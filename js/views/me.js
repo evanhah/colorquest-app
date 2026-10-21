@@ -6,6 +6,8 @@ import { levelInfo, titleOf, rankIndexOf, nextRank, nextPrivilege, epithetOf } f
 import { dayProgress } from '../core/game.js';
 import { getPet } from '../data/pets.js';
 import { worldSvg, colorDots } from '../ui/world.js';
+import { skySvg } from '../ui/sky.js';
+import { skyState, finishedConstellations, STARS_PER_CONSTELLATION } from '../data/sky.js';
 import { statGrid, xpBlock, rankBadge, praiseCard, bar, empty, parentName } from '../ui/components.js';
 
 export const title = () => '나의 모험';
@@ -21,6 +23,8 @@ export function render() {
   const unlock = nextPrivilege(s, level);
   const cards = s.praise.filter((p) => p.to === 'hero').slice(0, 3);
   const waiting = s.eggsWaiting.length;
+  const sky = skyState(s.stars.total);
+  const finished = finishedConstellations(s.stars.total);
 
   return `
     <section class="world-card">
@@ -46,6 +50,16 @@ export function render() {
       <span>📜 오늘의 퀘스트</span><b>${prog.done}/${prog.total}</b>
       ${bar(prog.total ? prog.done / prog.total : 0)}
     </a>
+
+    <section class="card sky-card">
+      ${skySvg(sky.current, sky.lit)}
+      <div>
+        <small class="muted">🌙 밤하늘</small>
+        <h3>${sky.current.icon} ${esc(sky.current.name)} <span class="muted">${sky.lit}/${STARS_PER_CONSTELLATION}</span></h3>
+        <p>오늘 퀘스트를 모두 하면 별이 하나 켜져요. 별 ${STARS_PER_CONSTELLATION}개면 별자리 완성!</p>
+        ${finished.length ? `<p class="constellations">완성한 별자리 ${finished.length}개 ${finished.slice(-8).map((c) => `<span title="${esc(c.name)}">${c.icon}</span>`).join('')}</p>` : ''}
+      </div>
+    </section>
 
     <h3 class="section-title">능력치</h3>
     ${statGrid(s.hero.stats)}

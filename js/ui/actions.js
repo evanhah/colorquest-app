@@ -5,6 +5,8 @@ import { store, ui, parseBackup } from '../state.js';
 import { toast, confirmTap, josa } from '../core/util.js';
 import { levelInfo } from '../core/level.js';
 import { hatch, requestMission, givePraise } from '../core/game.js';
+import { openMapEvent } from '../core/map.js';
+import { getPet } from '../data/pets.js';
 
 function closeModal() {
   ui.modal = null;
@@ -73,6 +75,30 @@ export const sharedActions = {
     store.update((s) => givePraise(s, { from: 'hero', to, text }));
     toast(`${name}에게 칭찬 카드를 보냈어요! ${name}${josa(name, '이', '가')} 무척 기뻐할 거예요.`);
   },
+
+  // 펫·땅·마을 사람 정보창 (도감과 지도에서 같이 쓴다) — 못 만난 펫도 어떤 펫인지 볼 수 있다
+  'pet-info': (el) => {
+    ui.modal = { type: 'pet', id: el.dataset.id };
+    store.refresh();
+  },
+  'land-info': (el) => {
+    ui.modal = { type: 'land', id: el.dataset.id };
+    store.refresh();
+  },
+  'villager-info': (el) => {
+    ui.modal = { type: 'villager', id: el.dataset.id };
+    store.refresh();
+  },
+  companion: (el) => {
+    ui.modal = null;
+    store.update((s) => {
+      s.hero.companion = el.dataset.id;
+    });
+    const { name } = getPet(el.dataset.id);
+    toast(`${name}${josa(name, '과', '와')} 함께 다녀요!`);
+  },
+  // 지도에서 지나온 보물 상자·마을 사람 열기
+  'map-event': (el) => store.update((s) => openMapEvent(s, Number(el.dataset.tile))),
 
   // 입력 중인 글은 화면을 다시 그리지 않고 기억만 해 둔다
   draft: (el) => {

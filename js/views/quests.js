@@ -61,7 +61,9 @@ function today(s) {
   const routines = routinesOn(s, date);
   return `
     <div class="day-head"><h2>${formatDate(date)}</h2><span class="pill">${prog.done}/${prog.total} 완료</span></div>
-    ${prog.total && prog.done === prog.total ? '<div class="notice good">🎉 오늘 퀘스트를 모두 해냈어요! 내일 또 만나요.</div>' : ''}
+    ${prog.total && prog.done === prog.total
+      ? '<div class="notice good">🎉 오늘 퀘스트를 모두 해냈어요! 밤하늘에 별이 하나 켜졌어요 ⭐ 내일 또 만나요.</div>'
+      : '<p class="muted small">⭐ 오늘 퀘스트를 모두 하면 밤하늘에 별이 하나 켜지고, 함께 다니는 펫이 춤을 춰요.</p>'}
     ${routines.length ? `<h3 class="section-title">매일 하는 일</h3>${routines.map((r) => row(r.id)).join('')}` : ''}
     <h3 class="section-title">오늘의 퀘스트</h3>
     ${day.quests.map(row).join('') || empty('오늘은 쉬는 날!')}

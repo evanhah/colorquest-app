@@ -44,6 +44,8 @@ export const defaults = () => ({
   egg: { warmth: 0, need: 200, laid: 0 }, // 품고 있는 보통 알
   eggsWaiting: [],               // 부화를 기다리는 알 종류 ('normal' | 'gold' | 'rainbow')
   pets: {},                      // { 펫 id: { count, first } }
+  map: { lastTile: 0, claimed: {} }, // 모험 지도: 지난번에 보여 준 칸(걷는 애니메이션용), 연 이벤트 { 칸: 날짜 }
+  stars: { total: 0 },           // 일일 퀘스트를 모두 끝낸 날 수 = 밤하늘의 별 (data/sky.js)
   log: [],                       // 모험 일지 { date, who, text, xp, stat, n } (최근 것이 앞)
   celebrations: [],              // 아이에게 보여 줄 축하 창
   lastBackup: null,
@@ -60,6 +62,8 @@ export function normalize(saved) {
   };
   s.settings = { ...base.settings, ...saved.settings };
   s.egg = { ...base.egg, ...saved.egg };
+  s.map = { ...base.map, ...saved.map };
+  s.stars = { ...base.stars, ...saved.stars };
   const valueIds = new Set(s.values.map((v) => v.id));
   DEFAULT_VALUES.forEach((v) => {
     if (!valueIds.has(v.id)) s.values.push({ ...v });
