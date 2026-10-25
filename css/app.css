@@ -537,6 +537,40 @@ summary { font-weight: 800; cursor: pointer; padding: 4px 0; }
 .priv-row input[type="number"] { width: 76px; flex: none; }
 .danger { border: 2px solid #ffe3e3; }
 
+/* ── 달력·기록 (부모 모드) ── */
+.cal-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0 12px; }
+.cal-nav h3 { margin: 0; }
+.cal-summary { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; text-align: center; }
+.cal-summary b { display: block; font-size: 19px; }
+.cal-summary small { color: var(--muted); font-size: 12px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.cal-head { text-align: center; font-weight: 800; font-size: 13px; color: var(--muted); padding: 4px 0; }
+.cal-head:first-child { color: #e03131; }
+.cal-day {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px;
+  min-height: 62px; padding: 6px 2px; border: 2px solid transparent; border-radius: 12px; background: #fff; font-size: 14px;
+}
+.cal-day .num { font-weight: 800; }
+.cal-day .marks { font-size: 12px; line-height: 1.2; letter-spacing: -1px; }
+.cal-day.blank { background: none; }
+.cal-day.off { background: none; color: #ced4da; }
+.cal-day.lv-0 { background: #f8f9fa; }
+.cal-day.lv-1 { background: #ebfbee; }
+.cal-day.lv-2 { background: #c3fae8; }
+.cal-day.lv-3 { background: #96f2d7; }
+.cal-day.lv-4 { background: #63e6be; }
+.cal-day.today .num { color: var(--accent); text-decoration: underline; text-decoration-thickness: 2px; }
+.cal-day.on { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
+.cal-legend { margin-top: 10px; }
+.cal-detail { margin-top: 14px; scroll-margin-top: 70px; }
+.check-list, .log-list { list-style: none; padding: 0; margin: 0 0 6px; }
+.check-list li { display: flex; gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px dashed var(--line); font-size: 15px; }
+.check-list li span:nth-child(2) { flex: 1; }
+.check-list li small { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.check-list li:not(.done) span:nth-child(2) { color: var(--muted); }
+.log-list li { padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.day-gain { margin: 10px 0; }
+
 /* ── 처음 설정 ── */
 .setup { max-width: 720px; margin: 0 auto; }
 .setup-hero { text-align: center; margin-bottom: 14px; }
@@ -640,6 +674,9 @@ blockquote cite, .letter cite { display: block; margin-top: 6px; font-size: 14px
 /* ── 폰 폭 ── */
 @media (max-width: 640px) {
   .team-slots, .jars { gap: 6px; }
+  .cal-summary { grid-template-columns: repeat(3, 1fr); }
+  .cal-grid { gap: 3px; }
+  .cal-day { min-height: 52px; font-size: 13px; }
   .slot .pet-emoji { font-size: 36px; }
   .jar { padding: 10px 6px; }
   .jar .btn.small { padding: 6px 8px; }

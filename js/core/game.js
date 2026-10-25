@@ -14,8 +14,8 @@ import { RANKS } from '../data/titles.js';
 import { petWork, petUndo, joinIfRoom, applyInterest } from './pets.js';
 import { dateKey, weekKey, addDays, daysBetween, seededRandom, weightedPick, weekdayOf, uid } from './util.js';
 
-const LOG_LIMIT = 300;
-const KEEP_DAYS = 70;       // 이보다 오래된 하루 기록은 지운다 (주간 기록은 12주)
+const LOG_LIMIT = 2000;     // 모험 일지 (부모 모드 달력에서 그날 일지를 보여 준다 — 약 6개월치)
+const KEEP_DAYS = 400;      // 이보다 오래된 하루 기록은 지운다 (주간 기록도 약 13개월) — 달력에서 지난 기록을 본다
 const KEYS_FOR_VAULT = 4;   // 주간 미션 수 = 비밀의 방을 여는 열쇠 수
 
 // ── 찾아보기 ─────────────────────────────────────────────
@@ -109,6 +109,7 @@ export function valueShares(s) {
 export function planDay(s, date, salt = '') {
   const rand = seededRandom(`${s.seed}:day:${date}${salt}`);
   return {
+    routines: routinesOn(s, date).map((r) => r.id), // 그날 매일 하는 일 (달력 기록용)
     quests: pick(s, activeQuests(s, 'daily'), s.settings.dailyCount, rand, date),
     challenges: pick(s, activeQuests(s, 'challenge'), s.settings.challengeCount, rand, date, { spreadBy: 'stat' }),
     picked: null,
@@ -502,7 +503,7 @@ function planParents(s, monday) {
 
 function prune(s, today) {
   const oldDay = addDays(today, -KEEP_DAYS);
-  const oldWeek = addDays(today, -7 * 12);
+  const oldWeek = addDays(today, -KEEP_DAYS);
   const oldSeen = addDays(today, -120);
   Object.keys(s.days).forEach((k) => {
     if (k < oldDay) delete s.days[k];

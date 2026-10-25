@@ -1,5 +1,5 @@
 // 부모 모드(비밀번호 4자리): 주간 미션 확인, 칭찬 카드, 히든 퀘스트 발견, 중점 가치·퀘스트, 매일 하는 일, 설정·백업.
-// 주소: #/parent · #/parent/praise · #/parent/hidden · #/parent/values · #/parent/routines · #/parent/settings
+// 주소: #/parent · #/parent/praise · #/parent/make · #/parent/calendar · #/parent/hidden · #/parent/values · #/parent/routines · #/parent/settings
 // 부모 화면을 떠나면 다시 잠긴다(app.js). 부모 화면에서는 축하 창을 띄우지 않고, 아이가 볼 때 보여 준다.
 
 import { store, ui, backupText, toggleIn } from '../state.js';
@@ -16,6 +16,7 @@ import { HERO_AVATARS } from '../data/titles.js';
 import { PARENT_IDS, PARENT_AVATARS } from '../data/parents.js';
 import { questRow, praiseCard, statTag, empty, parentName, restoreConfirm } from '../ui/components.js';
 import { prepareRestore } from '../ui/actions.js';
+import { dayRecord, dayLevel, monthDates, monthSummary, firstMonth } from '../core/history.js';
 
 const back = '<a class="back" href="#/parent">← 부모 모드</a>';
 
@@ -48,6 +49,7 @@ function pinGate() {
 const MENU = [
   ['praise', '💌', '칭찬 카드 쓰기', () => '본 것 + 누가 어떤 기분이었는지'],
   ['make', '✏️', '퀘스트 만들기', () => '경험치·능력치를 직접 정해서 만들어요'],
+  ['calendar', '🗓️', '달력·기록', (s) => `이번 달 퀘스트 한 날 ${monthSummary(s, dateKey().slice(0, 7)).activeDays}일`],
   ['hidden', '✨', '히든 퀘스트 발견', (s) => `발견 ${allHidden(s).filter((h) => s.hidden[h.id]).length}/${allHidden(s).length}`],
   ['values', '🎯', '중점 가치·퀘스트', () => '중요한 가치일수록 자주 나와요'],
   ['routines', '📅', '매일 하는 일', (s) => s.routines.filter((r) => r.on).map((r) => r.text.replace(/하기$/, '')).join(' · ') || '없음'],
@@ -319,6 +321,74 @@ function routines(s) {
     </section>`;
 }
 
+// ── 달력·기록 ──
+
+const TYPE_NAME = { routine: '매일 하는 일', daily: '오늘의 퀘스트', challenge: '오늘의 도전' };
+
+function dayDetail(s, date) {
+  const rec = dayRecord(s, date);
+  if (!rec.items.length && !rec.logs.length && !rec.missions.length) {
+    return `<section class="card cal-detail"><h3>${formatDate(date)}</h3>
+      <p class="muted">이날은 기록이 없어요. 앱을 열지 않았거나, 아주 오래된 기록이라 지워졌어요.</p></section>`;
+  }
+  const row = (icon, text, note = '', done = true) =>
+    `<li class="${done ? 'done' : ''}"><span>${icon}</span><span>${text}</span>${note ? `<small>${note}</small>` : ''}</li>`;
+  return `<section class="card cal-detail">
+    <div class="spread"><h3>${formatDate(date)}</h3>${rec.total ? `<span class="pill">${rec.done}/${rec.total} 완료${rec.allClear ? ' ⭐' : ''}</span>` : ''}</div>
+    ${rec.items.length ? `<h4>퀘스트</h4><ul class="check-list">${rec.items.map((it) =>
+      row(it.done ? '✅' : '⬜', esc(it.text), TYPE_NAME[it.type] || '', it.done)).join('')}</ul>` : ''}
+    ${rec.missions.length ? `<h4>🗝️ 끝낸 주간 미션</h4><ul class="check-list">${rec.missions.map((mi) =>
+      row(mi.icon, esc(mi.text), mi.with ? `${withName(parentName(s, mi.with))} 함께` : '')).join('')}</ul>` : ''}
+    ${rec.praise.length ? `<h4>💌 받은 칭찬 카드</h4>${rec.praise.map((c) => praiseCard(s, c)).join('')}` : ''}
+    ${rec.hidden.length ? `<h4>✨ 발견한 히든 퀘스트</h4><ul class="check-list">${rec.hidden.map((h) =>
+      row('✨', `${esc(h.text)}${h.note ? ` — "${esc(h.note)}"` : ''}`, esc(parentName(s, h.by)))).join('')}</ul>` : ''}
+    <p class="day-gain">이날 받은 경험치 <b>+${rec.xp}</b> ${Object.entries(rec.stats).map(([st, n]) => statTag(st, n)).join('')}</p>
+    ${rec.logs.length ? `<details><summary>모험 일지 ${rec.logs.length}개</summary><ul class="log-list">${rec.logs.map((e) =>
+      `<li>${e.who !== 'hero' ? `<b>${esc(parentName(s, e.who))}</b> · ` : ''}${esc(e.text)}${e.xp ? ` <span class="tag xp">+${e.xp}</span>` : ''}</li>`).join('')}</ul></details>` : ''}
+  </section>`;
+}
+
+function calendar(s) {
+  const today = dateKey();
+  const ym = ui.drafts.calMonth || today.slice(0, 7);
+  const selected = ui.drafts.calDay || today;
+  const [y, m] = ym.split('-').map(Number);
+  const { first, list } = monthDates(ym);
+  const sum = monthSummary(s, ym);
+  const start = s.createdAt || firstMonth(s);
+  const cells = list.map((d) => {
+    const n = Number(d.slice(8));
+    if (d > today || d < start) return `<span class="cal-day off"><span class="num">${n}</span></span>`;
+    const rec = dayRecord(s, d);
+    const marks = `${rec.allClear ? '⭐' : ''}${rec.praise.length ? '💌' : ''}${rec.hidden.length ? '✨' : ''}${rec.missions.length ? '🗝️' : ''}`;
+    return `<button class="cal-day lv-${dayLevel(rec)} ${d === selected ? 'on' : ''} ${d === today ? 'today' : ''}" data-action="cal-day" data-date="${d}" aria-label="${formatDate(d)}">
+      <span class="num">${n}</span><span class="marks">${marks}</span></button>`;
+  }).join('');
+  return `${back}
+    <h2>🗓️ 달력·기록</h2>
+    <div class="cal-nav">
+      <button class="btn ghost small" data-action="cal-move" data-step="-1" ${ym <= firstMonth(s) ? 'disabled' : ''}>‹ 이전 달</button>
+      <h3>${y}년 ${m}월</h3>
+      <button class="btn ghost small" data-action="cal-move" data-step="1" ${ym >= today.slice(0, 7) ? 'disabled' : ''}>다음 달 ›</button>
+    </div>
+    <section class="card cal-summary">
+      <div><b>${sum.activeDays}일</b><small>퀘스트 한 날</small></div>
+      <div><b>⭐ ${sum.stars}</b><small>다 한 날</small></div>
+      <div><b>${sum.quests}</b><small>끝낸 퀘스트</small></div>
+      <div><b>🗝️ ${sum.missions}</b><small>주간 미션</small></div>
+      <div><b>💌 ${sum.praise}</b><small>칭찬 카드</small></div>
+      <div><b>+${sum.xp}</b><small>경험치</small></div>
+    </section>
+    <div class="cal-grid">
+      ${WEEKDAYS.map((w) => `<span class="cal-head">${w}</span>`).join('')}
+      ${'<span class="cal-day blank"></span>'.repeat(first.getDay())}
+      ${cells}
+    </div>
+    <p class="muted small cal-legend">색이 진할수록 그날 할 일을 많이 한 날이에요 · ⭐ 다 한 날 · 💌 칭찬 카드 · ✨ 히든 발견 · 🗝️ 주간 미션.
+      연속 기록은 일부러 세지 않아요(빠진 날이 있어도 괜찮아요). 날짜를 누르면 그날 기록이 나와요.</p>
+    ${dayDetail(s, selected)}`;
+}
+
 // ── 설정·백업 ──
 
 function settings(s) {
@@ -392,6 +462,7 @@ function settings(s) {
 const SUB = {
   praise: { title: '칭찬 카드', render: praise },
   make: { title: '퀘스트 만들기', render: make },
+  calendar: { title: '달력·기록', render: calendar },
   hidden: { title: '히든 퀘스트', render: hidden },
   values: { title: '중점 가치', render: values },
   routines: { title: '매일 하는 일', render: routines },
@@ -443,6 +514,21 @@ export const actions = {
   'parent-lock': () => {
     ui.parentOk = false;
     location.hash = '#/me';
+  },
+  'cal-move': (el) => {
+    const today = dateKey();
+    const [y, m] = (ui.drafts.calMonth || today.slice(0, 7)).split('-').map(Number);
+    const d = new Date(y, m - 1 + Number(el.dataset.step), 1);
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    ui.drafts.calMonth = ym;
+    // 이번 달이면 오늘, 지난달이면 그달 마지막 날을 보여 준다
+    ui.drafts.calDay = ym === today.slice(0, 7) ? today : monthDates(ym).list.pop();
+    store.refresh();
+  },
+  'cal-day': (el) => {
+    ui.drafts.calDay = el.dataset.date;
+    store.refresh();
+    document.querySelector('.cal-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   },
   'pick-draft': (el) => {
     ui.drafts[el.dataset.key] = el.dataset.value;
