@@ -77,6 +77,9 @@ export function openMapEvent(s, tile) {
   }
 }
 
+/** 만난 마을 사람 id (열어 본 마을 사람 칸에서) */
+export const metVillagers = (s) => Object.keys(s.map.claimed).map((t) => eventAt(Number(t))).filter((ev) => ev?.type === 'villager').map((ev) => ev.id);
+
 const JOSA = { 이: ['이', '가'], 과: ['과', '와'], 을: ['을', '를'], 은: ['은', '는'] };
 
 /** 이야기 속 {펫}·{펫이}·{펫과}·{펫을}·{펫은}을 함께 다니는 펫 이름으로 바꾼다 */

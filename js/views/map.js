@@ -7,6 +7,7 @@ import { esc } from '../core/util.js';
 import { RANKS } from '../data/titles.js';
 import { LANDS, PAGE_TILES, getVillager } from '../data/map.js';
 import { PETS, getPet } from '../data/pets.js';
+import { getItem } from '../data/petpower.js';
 import { tileOf, landIndexOf, eventAt, pendingEvents, nextEvent } from '../core/map.js';
 
 export const title = () => '모험 지도';
@@ -115,6 +116,7 @@ export function render() {
         <g id="walker" class="walker" style="transform: translate(${wx}px, ${wy}px)">
           ${pet ? `<text x="-22" y="4" font-size="24" text-anchor="middle" class="walker-pet">${pet.emoji}</text>` : ''}
           <text x="4" y="-12" font-size="36" text-anchor="middle">${esc(s.hero.avatar)}</text>
+          ${s.bank.hat ? `<text x="4" y="-44" font-size="20" text-anchor="middle">${esc(getItem(s.bank.hat)?.icon || '')}</text>` : ''}
         </g>
       </svg>
     </section>

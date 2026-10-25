@@ -11,6 +11,7 @@ import { PETS, EGGS, RARITY } from './pets.js';
 import { TITLES, RANKS, DEFAULT_PRIVILEGES } from './titles.js';
 import { LANDS, VILLAGERS, CHEST_LINES } from './map.js';
 import { CONSTELLATIONS, STARS_PER_CONSTELLATION } from './sky.js';
+import { TALENT, CARDS, COACH_TIPS, SHOP, ORB_BY_RARITY, TRIP_QUESTS } from './petpower.js';
 
 export function validateData() {
   const problems = [];
@@ -96,5 +97,18 @@ export function validateData() {
     unique(c.id, '별자리');
     if (c.points.length !== STARS_PER_CONSTELLATION) problems.push(`별자리 ${c.id}: 별 ${c.points.length}개`);
   });
+  // 펫 능력: 펫마다 재능·지식 카드 2장, 능력치마다 꿀팁, 등급마다 구슬·탐험 값
+  PETS.forEach((p) => {
+    if (!STAT_IDS.includes(TALENT[p.id])) problems.push(`펫 ${p.id}: 재능 없음`);
+    if ((CARDS[p.id] || []).length !== 2) problems.push(`펫 ${p.id}: 지식 카드가 2장이 아님`);
+  });
+  Object.keys(TALENT).forEach((id) => { if (!PETS.some((p) => p.id === id)) problems.push(`재능: 없는 펫 '${id}'`); });
+  STAT_IDS.forEach((id) => {
+    if (!COACH_TIPS[id]?.basic?.length || !COACH_TIPS[id]?.challenge?.length) problems.push(`꿀팁: '${id}' 없음`);
+  });
+  Object.keys(RARITY).forEach((r) => {
+    if (!ORB_BY_RARITY[r] || !TRIP_QUESTS[r]) problems.push(`펫 능력: 등급 '${r}' 값 없음`);
+  });
+  SHOP.forEach((it) => unique(`shop:${it.id}`, '가게'));
   return problems;
 }

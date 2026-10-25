@@ -11,6 +11,7 @@ import { STRENGTH_BONUS } from '../data/stats.js';
 import { ALLCLEAR_WARMTH } from '../data/sky.js';
 import { levelInfo, rankIndexOf } from './level.js';
 import { RANKS } from '../data/titles.js';
+import { petWork, petUndo, joinIfRoom, applyInterest } from './pets.js';
 import { dateKey, weekKey, addDays, daysBetween, seededRandom, weightedPick, weekdayOf, uid } from './util.js';
 
 const LOG_LIMIT = 300;
@@ -147,9 +148,16 @@ export function completeDay(s, id, date = dateKey()) {
   day.done[id] = true;
   const r = rewardFor(item);
   grant(s, { xp: r.xp, stat: item.stat, n: r.n, text: dayText(item) });
+  // 펫 팀이 구슬을 만들고 탐험한다 — 같은 항목은 하루 한 번만(되돌렸다 다시 눌러 모으기 방지)
+  day.orbs = day.orbs || {};
+  let orbs = 0;
+  if (!(id in day.orbs)) {
+    orbs = petWork(s);
+    day.orbs[id] = orbs;
+  }
   if (item.type === 'routine') checkStreak(s, id, date);
   checkAllClear(s, date);
-  return { xp: r.xp, stat: item.stat, n: r.n };
+  return { xp: r.xp, stat: item.stat, n: r.n, orbs };
 }
 
 /**
@@ -176,6 +184,7 @@ export function undoDay(s, id, date = dateKey()) {
   delete day.done[id];
   const r = rewardFor(item);
   revoke(s, { xp: r.xp, stat: item.stat, n: r.n, text: dayText(item) });
+  if (day.orbs && id in day.orbs && petUndo(s, day.orbs[id])) delete day.orbs[id];
 }
 
 /** 부모가 방금 만든 퀘스트를 오늘의 퀘스트에 바로 넣는다 */
@@ -312,6 +321,7 @@ export function finishMission(s, monday, id, partner = null) {
   const grants = [{ xp: r.xp, stat: info.stat, n: r.n, text: `주간 미션: ${info.text}` }];
   if (withWho && r.partnerXp) grants.push({ who: withWho, xp: r.partnerXp, text: `함께한 미션: ${info.text}` });
   rewardWith(s, { type: 'key', text: info.text, monday }, ...grants);
+  petWork(s);
 }
 
 function checkStreak(s, routineId, date) {
@@ -413,6 +423,7 @@ export function hatch(s, index = 0) {
   const had = s.pets[pet.id];
   s.pets[pet.id] = { count: (had?.count || 0) + 1, first: had?.first || dateKey() };
   if (!s.hero.companion) s.hero.companion = pet.id;
+  else joinIfRoom(s, pet.id);
   s.celebrations.unshift({ type: 'hatch', pet: pet.id, egg, isNew: !had });
   addLog(s, { who: 'hero', text: `${EGGS[egg].name}에서 ${pet.name} 부화`, xp: 0 });
 }
@@ -469,7 +480,7 @@ export function warmEgg(s, xp) {
 
 export function needsPlan(s, today = dateKey()) {
   const monday = weekKey(today);
-  return !s.days[today] || !s.weeks[monday] || !s.parentWeeks[monday] || landEggsDue(s);
+  return !s.days[today] || !s.weeks[monday] || !s.parentWeeks[monday] || landEggsDue(s) || !s.bank.lastInterest || s.bank.lastInterest < monday;
 }
 
 function planParents(s, monday) {
@@ -513,6 +524,7 @@ export function ensurePlans(s, today = dateKey()) {
   if (!s.parentWeeks[monday]) s.parentWeeks[monday] = planParents(s, monday);
   if (!s.days[today]) s.days[today] = planDay(s, today);
   grantLandEggs(s);
+  applyInterest(s, monday);
   prune(s, today);
 }
 

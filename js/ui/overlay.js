@@ -15,7 +15,9 @@ import { skySvg } from './sky.js';
 import { LANDS, CHEST_LINES, CHEST_WARMTH, getVillager, villagersOf } from '../data/map.js';
 import { CONSTELLATIONS, STARS_PER_CONSTELLATION, ALLCLEAR_WARMTH, skyState } from '../data/sky.js';
 import { PETS } from '../data/pets.js';
-import { fillStory, landIndexOf, tileOf, eventAt } from '../core/map.js';
+import { ORB_BY_RARITY, TRIP_QUESTS, TALENT, CARDS, THANKS, SHARE_BADGES, getItem } from '../data/petpower.js';
+import { inTeam } from '../core/pets.js';
+import { fillStory, landIndexOf, tileOf, metVillagers } from '../core/map.js';
 import { statTag, xpTag, parentName, keySlots } from './components.js';
 
 const COLORS = ['#fa5252', '#ff922b', '#fcc419', '#51cf66', '#339af0', '#4c6ef5', '#cc5de8'];
@@ -114,6 +116,50 @@ const CELEBRATIONS = {
       ${okButton()}`;
   },
 
+  // 펫 팀의 펫이 탐험에서 돌아와 지식 카드를 가져왔을 때
+  card: (s, c) => {
+    const pet = getPet(c.pet);
+    const cards = CARDS[c.pet] || [];
+    if (!pet || !cards[c.n - 1]) return okButton();
+    return `<div class="burst">${pet.emoji}</div>
+      <p class="kicker">🧭 탐험에서 돌아왔어요!</p>
+      <h2>${esc(pet.name)}의 지식 카드 ${c.n}/${cards.length}</h2>
+      <div class="fact-card">${esc(cards[c.n - 1])}</div>
+      <p class="muted">가족에게 이 이야기를 들려줘 볼까요?</p>${okButton()}`;
+  },
+
+  interest: (s, c) => `<div class="burst">🏦</div>
+    <p class="kicker">모으기 저금통에 이자가 붙었어요!</p>
+    <h2>🔮 +${c.gain}</h2>
+    <p>꺼내 쓰지 않고 모아 두었더니 구슬이 저절로 늘어났어요. 모으기 저금통에는 지금 🔮 ${s.bank.save}개가 있어요.</p>${okButton()}`,
+
+  gift: (s, c) => {
+    const v = getVillager(c.villager);
+    if (!v) return okButton();
+    return `<div class="burst">${v.emoji}</div>
+      <p class="kicker">💝 빛을 나눠 줬어요!</p>
+      <h2>${esc(v.name)}</h2>
+      <blockquote>${esc(THANKS[(c.n - 1) % THANKS.length])}<cite>— ${esc(v.name)}</cite></blockquote>
+      <p class="hint-box">💡 현실에서도 해 볼까? ${esc(v.hint)}</p>${okButton()}`;
+  },
+
+  shareBadge: (s, c) => {
+    const badge = SHARE_BADGES.find((b) => b.at === c.at);
+    return badge ? `<div class="burst">${badge.icon}</div>
+      <p class="kicker">나눔 배지를 받았어요!</p>
+      <h2>${esc(badge.name)}</h2>
+      <p>지금까지 구슬 ${badge.at}개를 나눴어요. 나눌수록 마을이 환해져요.</p>${okButton()}` : okButton();
+  },
+
+  // 모으기 저금통으로 큰 물건을 샀을 때 — 기다려서 이룬 꿈
+  bigdream: (s, c) => {
+    const item = getItem(c.id);
+    return item ? `<div class="burst">${item.icon}</div>
+      <p class="kicker">큰 꿈을 이뤘어요!</p>
+      <h2>${esc(item.name)}</h2>
+      <p>조금씩 모아서 드디어 샀어요. 기다린 만큼 더 멋져요!</p>${okButton()}` : okButton();
+  },
+
   // 새 빛깔 땅에 처음 도착했을 때 받는 수호 알
   divineEgg: (s, c) => {
     const rank = RANKS.find((r) => r.id === c.land);
@@ -188,8 +234,8 @@ function petInfo(s, id) {
   }).join('');
   let foot;
   if (!have) foot = '<p class="unmet-note">아직 못 만났어요. 퀘스트로 알을 데워 부화시키면 만날 수 있어요!</p>';
-  else if (s.hero.companion === pet.id) foot = '<p class="done-note">지금 함께 다니고 있어요</p>';
-  else foot = `<button class="btn big" data-action="companion" data-id="${pet.id}">함께 다니기</button>`;
+  else if (s.hero.companion === pet.id) foot = '<p class="done-note">펫 팀 대장으로 함께 다니고 있어요</p>';
+  else foot = `<button class="btn big" data-action="companion" data-id="${pet.id}">대장으로 함께 다니기</button>`;
   return `${closeButton}
     <div class="pet-hero ${have ? '' : 'unmet'} ${pet.rarity === 'divine' ? 'divine' : ''}">${pet.emoji}</div>
     <p class="rarity r-${pet.rarity}">${rarity.stars} ${rarity.name}</p>
@@ -201,8 +247,18 @@ function petInfo(s, id) {
       <dt>사는 곳</dt><dd>${home.placeIcon} ${esc(home.place)}</dd>
       ${have ? `<dt>처음 만난 날</dt><dd>${formatDate(have.first)}</dd><dt>만난 횟수</dt><dd>${have.count}번</dd>` : ''}
     </dl>
+    <h4>펫 능력 ${have && inTeam(s, pet.id) ? '<small class="muted">· 🐾 펫 팀에 있어요</small>' : ''}</h4>
+    <ul class="abilities">
+      <li>🔮 <b>빛 구슬</b> 퀘스트마다 ${ORB_BY_RARITY[pet.rarity]}개</li>
+      <li>🧭 <b>탐험</b> 퀘스트 ${TRIP_QUESTS[pet.rarity]}번마다 지식 카드</li>
+      <li>💡 <b>재능</b> ${getStat(TALENT[pet.id]).icon} ${getStat(TALENT[pet.id]).name} 퀘스트 코치</li>
+    </ul>
+    <h4>탐험 카드 ${have?.cards || 0}/${(CARDS[pet.id] || []).length}</h4>
+    <ul class="fact-list">${(CARDS[pet.id] || []).map((text, i) => (i < (have?.cards || 0)
+      ? `<li>${esc(text)}</li>` : '<li class="locked">🔒 펫 팀에 넣고 퀘스트를 하면 탐험해서 가져와요</li>')).join('')}</ul>
     <h4>어떤 알에서 나와요?</h4>
     <ul class="egg-odds">${eggs}</ul>
+    ${have && s.hero.companion !== pet.id ? `<button class="btn ghost" data-action="team-toggle" data-id="${pet.id}">${inTeam(s, pet.id) ? '펫 팀에서 빼기' : '🐾 펫 팀에 넣기'}</button>` : ''}
     ${foot}`;
 }
 
@@ -217,8 +273,6 @@ function villagerCard(s, v) {
     <p class="hint-box">💡 ${esc(v.hint)}</p>`;
 }
 
-/** 만난 마을 사람 id (열어 본 마을 사람 칸에서) */
-const metVillagers = (s) => Object.keys(s.map.claimed).map((t) => eventAt(Number(t))).filter((ev) => ev?.type === 'villager').map((ev) => ev.id);
 
 /** 땅 정보창: 그 땅에 사는 펫(못 만난 펫은 그림자)과 마을 사람 */
 function landInfo(s, id) {

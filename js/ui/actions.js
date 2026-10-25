@@ -6,6 +6,7 @@ import { toast, confirmTap, josa } from '../core/util.js';
 import { levelInfo } from '../core/level.js';
 import { hatch, requestMission, givePraise } from '../core/game.js';
 import { openMapEvent } from '../core/map.js';
+import { setLeader, toggleTeam } from '../core/pets.js';
 import { getPet } from '../data/pets.js';
 
 function closeModal() {
@@ -91,11 +92,14 @@ export const sharedActions = {
   },
   companion: (el) => {
     ui.modal = null;
-    store.update((s) => {
-      s.hero.companion = el.dataset.id;
-    });
+    store.update((s) => setLeader(s, el.dataset.id));
     const { name } = getPet(el.dataset.id);
-    toast(`${name}${josa(name, '과', '와')} 함께 다녀요!`);
+    toast(`${name}${josa(name, '이', '가')} 펫 팀 대장이 됐어요! 함께 다녀요.`);
+  },
+  // 펫 정보창에서 펫 팀에 넣기/빼기
+  'team-toggle': (el) => {
+    const result = store.update((s) => toggleTeam(s, el.dataset.id));
+    if (result === 'full') toast('팀은 3마리까지예요. 펫 팀 화면에서 한 마리를 먼저 빼 주세요.');
   },
   // 지도에서 지나온 보물 상자·마을 사람 열기
   'map-event': (el) => store.update((s) => openMapEvent(s, Number(el.dataset.tile))),

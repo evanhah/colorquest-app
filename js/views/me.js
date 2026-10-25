@@ -7,6 +7,8 @@ import { dayProgress } from '../core/game.js';
 import { getPet } from '../data/pets.js';
 import { worldSvg, colorDots } from '../ui/world.js';
 import { skySvg } from '../ui/sky.js';
+import { teamOf, orbsPerQuest } from '../core/pets.js';
+import { getItem, TEAM_SIZE } from '../data/petpower.js';
 import { skyState, finishedConstellations, STARS_PER_CONSTELLATION } from '../data/sky.js';
 import { statGrid, xpBlock, rankBadge, praiseCard, bar, empty, parentName } from '../ui/components.js';
 
@@ -24,17 +26,19 @@ export function render() {
   const cards = s.praise.filter((p) => p.to === 'hero').slice(0, 3);
   const waiting = s.eggsWaiting.length;
   const sky = skyState(s.stars.total);
+  const hat = s.bank.hat ? getItem(s.bank.hat) : null;
+  const team = teamOf(s);
   const finished = finishedConstellations(s.stars.total);
 
   return `
     <section class="world-card">
-      ${worldSvg(rankIdx, { avatar: s.hero.avatar, pet: pet?.emoji })}
+      ${worldSvg(rankIdx, { avatar: s.hero.avatar, pet: pet?.emoji, hat: hat?.icon, decos: s.bank.owned })}
       ${colorDots(rankIdx)}
     </section>
 
     <section class="card hero-card">
       <div class="hero-top">
-        <span class="avatar big">${esc(s.hero.avatar)}</span>
+        <span class="avatar big">${esc(s.hero.avatar)}${hat ? `<i class="hat">${hat.icon}</i>` : ''}</span>
         <div class="hero-id">
           <span class="epithet" style="--c:${ep.stat.color}">${ep.stat.icon} ${ep.thisWeek ? '이번 주' : '지금'} 별명 · ${esc(ep.stat.epithet)}</span>
           <h2>${esc(s.hero.name)}</h2>
@@ -49,6 +53,12 @@ export function render() {
     <a class="card today-link" href="#/quests/today">
       <span>📜 오늘의 퀘스트</span><b>${prog.done}/${prog.total}</b>
       ${bar(prog.total ? prog.done / prog.total : 0)}
+    </a>
+
+    <a class="card pouch-link" href="#/pets/${s.bank.pouch ? 'jars' : 'team'}">
+      <span>${team.map((p) => p.emoji).join('') || '🐾'}</span>
+      <div><b>펫 팀${team.length < TEAM_SIZE ? ` · 빈 자리 ${TEAM_SIZE - team.length}` : ''}</b>
+        <small>${s.bank.pouch ? `🔮 구슬 주머니 ${s.bank.pouch}개 — 저금통에 나눠 담아요` : `퀘스트 하나에 🔮 ${orbsPerQuest(s)}개를 만들어요`}</small></div>
     </a>
 
     <section class="card sky-card">

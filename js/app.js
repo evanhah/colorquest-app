@@ -69,7 +69,7 @@ function render() {
     const prog = dayProgress(s);
     setBadge('quests', prog.total - prog.done);
     setBadge('map', pendingEvents(s).length);
-    setBadge('pets', s.eggsWaiting.length);
+    setBadge('pets', s.eggsWaiting.length + (s.bank.pouch ? 1 : 0));
     setBadge('parent', pendingCount(s));
   }
 }

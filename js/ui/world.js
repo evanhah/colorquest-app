@@ -4,10 +4,16 @@
 
 import { RANKS } from '../data/titles.js';
 import { esc } from '../core/util.js';
+import { SHOP } from '../data/petpower.js';
+
+const DECO_ICON = Object.fromEntries(SHOP.map((it) => [it.id, it.icon]));
 
 const at = Object.fromEntries(RANKS.map((r, i) => [r.id, i]));
 
-export function worldSvg(rankIdx, { avatar = '', pet = '' } = {}) {
+// 가게에서 산 마을 꾸미기가 놓이는 자리
+const DECO_AT = { balloon: [250, 62, 18], tent: [300, 106, 20], carousel: [138, 124, 22], ferris: [380, 96, 26], castle: [205, 58, 22] };
+
+export function worldSvg(rankIdx, { avatar = '', pet = '', hat = '', decos = [] } = {}) {
   const c = (rank, color, gray) => (rankIdx >= at[rank] ? color : gray);
   const sky = c('blue', '#d0ebff', '#e9ecef');
   const sun = c('orange', '#ff922b', '#ced4da');
@@ -54,7 +60,12 @@ export function worldSvg(rankIdx, { avatar = '', pet = '' } = {}) {
     ${flower(112, 116, red)}${flower(122, 120, red)}${flower(268, 118, red)}
     ${sunflower(250, 100)}${sunflower(150, 98)}
     ${lavender(298, 116)}${lavender(305, 112)}${lavender(312, 116)}
+    ${decos.filter((id) => DECO_AT[id]).map((id) => {
+      const [x, y, size] = DECO_AT[id];
+      return `<text x="${x}" y="${y}" font-size="${size}" text-anchor="middle">${esc(DECO_ICON[id])}</text>`;
+    }).join('')}
     ${avatar ? `<text x="84" y="128" font-size="26" text-anchor="middle">${esc(avatar)}</text>` : ''}
+    ${avatar && hat ? `<text x="84" y="104" font-size="15" text-anchor="middle">${esc(hat)}</text>` : ''}
     ${pet ? `<text x="108" y="132" font-size="17" text-anchor="middle">${esc(pet)}</text>` : ''}
   </svg>`;
 }

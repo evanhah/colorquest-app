@@ -44,7 +44,16 @@ export const defaults = () => ({
   egg: { warmth: 0, need: 200, laid: 0 }, // 품고 있는 보통 알
   eggsWaiting: [],               // 부화를 기다리는 알 종류 ('normal' | 'gold' | 'rainbow' | 'divine')
   landEggs: 0,                   // 지금까지 받은 수호 알(디바인 알) 수 = 도착한 빛깔 땅 수 (회색 마을 빼고)
-  pets: {},                      // { 펫 id: { count, first } }
+  pets: {},                      // { 펫 id: { count, first, trip(탐험 걸음), cards(모은 지식 카드 수) } }
+  team: [],                      // 펫 팀원 id (대장=함께 다니는 펫은 따로, 합쳐서 최대 3마리 — core/pets.js teamOf)
+  bank: {                        // 빛 구슬: 주머니 → 아이가 쓰기·모으기·나누기 저금통에 나눠 담는다
+    pouch: 0, spend: 0, save: 0, share: 0,
+    sharedTotal: 0,              // 지금까지 나눈 구슬 (나눔 배지)
+    gifts: {},                   // { 마을 사람 id 또는 dad·mom: 나눈 횟수 }
+    owned: [],                   // 가게에서 산 물건 id
+    hat: null,                   // 쓰고 있는 모자
+    lastInterest: null,          // 이자를 계산한 주(월요일)
+  },
   map: { lastTile: 0, claimed: {} }, // 모험 지도: 지난번에 보여 준 칸(걷는 애니메이션용), 연 이벤트 { 칸: 날짜 }
   stars: { total: 0 },           // 일일 퀘스트를 모두 끝낸 날 수 = 밤하늘의 별 (data/sky.js)
   log: [],                       // 모험 일지 { date, who, text, xp, stat, n } (최근 것이 앞)
@@ -65,6 +74,7 @@ export function normalize(saved) {
   s.egg = { ...base.egg, ...saved.egg };
   s.map = { ...base.map, ...saved.map };
   s.stars = { ...base.stars, ...saved.stars };
+  s.bank = { ...base.bank, ...saved.bank };
   const valueIds = new Set(s.values.map((v) => v.id));
   DEFAULT_VALUES.forEach((v) => {
     if (!valueIds.has(v.id)) s.values.push({ ...v });

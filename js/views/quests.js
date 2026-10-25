@@ -6,6 +6,7 @@ import {
   routinesOn, dayItem, dayProgress, completeDay, undoDay, pickChallenge, rewardFor,
   missionsOf, keysOf, keysNeeded, vaultReady, routineCount, requestMission, cancelMission, openVault, allHidden,
 } from '../core/game.js';
+import { coachFor } from '../core/pets.js';
 import { getStat } from '../data/stats.js';
 import { PARENT_IDS } from '../data/parents.js';
 import { questRow, segTabs, keySlots, bar, empty, parentName, statTag } from '../ui/components.js';
@@ -32,8 +33,10 @@ function today(s) {
     if (!item) return '';
     const r = rewardFor(item);
     const done = !!day.done[id];
+    const coach = done ? null : coachFor(s, item.stat, `${date}:${id}`);
     return questRow({
       icon: item.icon, text: item.text, stat: item.stat, xp: r.xp, n: r.n, state: done ? 'done' : 'todo',
+      extra: coach ? `<div class="coach"><span>${coach.pet.emoji}</span><span><b>${esc(coach.pet.name)} 코치</b> ${esc(coach.tip)}</span></div>` : '',
       right: done
         ? `<button class="btn ghost small" data-action="day-undo" data-id="${id}">되돌리기</button>`
         : `<button class="btn" data-action="day-done" data-id="${id}">완료!</button>`,
@@ -143,7 +146,7 @@ export const actions = {
     const reward = store.update((s) => completeDay(s, el.dataset.id));
     if (reward) {
       const st = getStat(reward.stat);
-      toast(`+${reward.xp} XP · ${st.icon} ${st.name} +${reward.n}`);
+      toast(`+${reward.xp} XP · ${st.icon} ${st.name} +${reward.n}${reward.orbs ? ` · 🔮 +${reward.orbs}` : ''}`);
     }
   },
   'day-undo': (el) => store.update((s) => undoDay(s, el.dataset.id)),
