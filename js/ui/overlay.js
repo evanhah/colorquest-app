@@ -18,7 +18,9 @@ import { PETS } from '../data/pets.js';
 import { ORB_BY_RARITY, TRIP_QUESTS, TALENT, CARDS, THANKS, SHARE_BADGES, getItem } from '../data/petpower.js';
 import { inTeam } from '../core/pets.js';
 import { fillStory, landIndexOf, tileOf, metVillagers } from '../core/map.js';
-import { statTag, xpTag, parentName, keySlots } from './components.js';
+import { statTag, xpTag, parentName, keySlots, bossImage } from './components.js';
+import { bossLeft, bossLine, bossIntro } from '../core/boss.js';
+import { BOSS_HIT, BOSS_FRIEND } from '../data/bosses.js';
 
 const COLORS = ['#fa5252', '#ff922b', '#fcc419', '#51cf66', '#339af0', '#4c6ef5', '#cc5de8'];
 
@@ -114,6 +116,48 @@ const CELEBRATIONS = {
       <p>${esc(pet.desc)}</p>
       ${c.isNew ? '' : `<p class="muted">친밀도가 올라갔어요 (×${s.pets[pet.id]?.count || 1})</p>`}
       ${okButton()}`;
+  },
+
+  // 보스전 (core/boss.js) — 몬스터는 회색 껍질이 벗겨질수록 색을 되찾는다
+  bossStart: (s) => {
+    const b = s.boss;
+    if (!b) return okButton();
+    return `${bossImage(b, { gray: 1, cls: 'big' })}
+      <p class="kicker">👾 보스 등장!</p>
+      <h2>${esc(b.name)}</h2>
+      <p>${esc(bossIntro(b))}</p>
+      <div class="boss-say">"${esc(bossLine(b))}"</div>
+      <h4>⚔️ 이기는 행동</h4>
+      <ul class="fact-list">${b.actions.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>
+      <p class="muted">회색 껍질 ${b.hp}칸이 다 벗겨지면 ${esc(b.name)}${josa(b.name, '이', '가')} 색을 되찾고 친구가 돼요!</p>
+      ${okButton('도전!')}`;
+  },
+
+  bossHit: (s, c) => {
+    const b = s.boss;
+    if (!b) return okButton();
+    const left = bossLeft(b);
+    const by = parentName(s, c.by);
+    const count = c.count || 1;
+    return `${bossImage(b, { gray: left / b.hp, cls: 'big hit' })}
+      <p class="kicker">⚔️ 한 방${count > 1 ? ` ×${count}` : ''}!</p>
+      <h2>회색 껍질이 ${count}칸 벗겨졌어요</h2>
+      ${c.note ? `<blockquote>${esc(c.note)}<cite>— ${esc(by)}</cite></blockquote>` : `<p>${esc(c.action || '')}</p>`}
+      <div class="boss-say">"${esc(bossLine(b))}"</div>
+      <p>남은 회색 껍질 <b>${left}칸</b></p>
+      <div class="tags">${statTag(b.stat, BOSS_HIT.n * count)}${xpTag(BOSS_HIT.xp * count)}</div>${okButton()}`;
+  },
+
+  bossFriend: (s, c) => {
+    const f = s.bossFriends[c.index];
+    if (!f) return okButton();
+    return `<div class="dance">${bossImage(f, { cls: 'big' })}</div>
+      <p class="kicker">🌈 친구가 됐어요!</p>
+      <h2>${esc(f.name)}</h2>
+      <p>회색 껍질이 모두 벗겨지고 ${esc(f.name)}${josa(f.name, '이', '가')} 색을 되찾았어요. ${f.hits}번의 한 방, 정말 멋졌어요!</p>
+      <div class="boss-say">"${esc(f.line)}"</div>
+      <div class="tags">${statTag(f.stat, BOSS_FRIEND.n)}${xpTag(BOSS_FRIEND.xp)}</div>
+      <p>🥚 <b>황금 알</b>을 받았어요!</p>${okButton()}`;
   },
 
   // 펫 팀의 펫이 탐험에서 돌아와 지식 카드를 가져왔을 때

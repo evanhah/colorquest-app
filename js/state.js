@@ -54,6 +54,8 @@ export const defaults = () => ({
     hat: null,                   // 쓰고 있는 모자
     lastInterest: null,          // 이자를 계산한 주(월요일)
   },
+  boss: null,                    // 지금 보스전 (core/boss.js startBoss) — 고치고 싶은 습관 몬스터
+  bossFriends: [],               // 회색 껍질이 다 벗겨져 친구가 된 보스들
   map: { lastTile: 0, claimed: {} }, // 모험 지도: 지난번에 보여 준 칸(걷는 애니메이션용), 연 이벤트 { 칸: 날짜 }
   stars: { total: 0 },           // 일일 퀘스트를 모두 끝낸 날 수 = 밤하늘의 별 (data/sky.js)
   log: [],                       // 모험 일지 { date, who, text, xp, stat, n } (최근 것이 앞)

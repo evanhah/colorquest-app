@@ -70,7 +70,7 @@ function render() {
     setBadge('quests', prog.total - prog.done);
     setBadge('map', pendingEvents(s).length);
     setBadge('pets', s.eggsWaiting.length + (s.bank.pouch ? 1 : 0));
-    setBadge('parent', pendingCount(s));
+    setBadge('parent', pendingCount(s) + (s.boss?.pending.length || 0));
   }
 }
 

@@ -1,4 +1,4 @@
-// 퀘스트: 오늘(매일 하는 일·오늘의 퀘스트·오늘의 도전) / 이번 주(미션 4개·열쇠·비밀의 방) / 히든.
+// 퀘스트: 오늘(매일 하는 일·오늘의 퀘스트·오늘의 도전) / 이번 주(미션 4개·열쇠·비밀의 방) / 히든 / 보스(습관 몬스터).
 
 import { store } from '../state.js';
 import { esc, dateKey, weekKey, formatDate, toast, josa, shortDate } from '../core/util.js';
@@ -7,18 +7,20 @@ import {
   missionsOf, keysOf, keysNeeded, vaultReady, routineCount, requestMission, cancelMission, openVault, allHidden,
 } from '../core/game.js';
 import { coachFor } from '../core/pets.js';
+import { bossLeft, bossLine, requestHit } from '../core/boss.js';
+import { BOSS_PENDING_MAX } from '../data/bosses.js';
 import { getStat } from '../data/stats.js';
 import { PARENT_IDS } from '../data/parents.js';
-import { questRow, segTabs, keySlots, bar, empty, parentName, statTag } from '../ui/components.js';
+import { questRow, segTabs, keySlots, bar, empty, parentName, statTag, bossImage } from '../ui/components.js';
 
 export const title = () => '퀘스트';
 
-const TABS = [['today', '☀️ 오늘', '#/quests/today'], ['week', '🗝️ 이번 주', '#/quests/week'], ['hidden', '❓ 히든', '#/quests/hidden']];
+const TABS = [['today', '☀️ 오늘', '#/quests/today'], ['week', '🗝️ 이번 주', '#/quests/week'], ['hidden', '❓ 히든', '#/quests/hidden'], ['boss', '👾 보스', '#/quests/boss']];
 
 export function render(route) {
   const tab = TABS.some(([key]) => key === route.args[0]) ? route.args[0] : 'today';
   const s = store.get();
-  return segTabs(TABS, tab) + { today, week, hidden }[tab](s);
+  return segTabs(TABS, tab) + { today, week, hidden, boss }[tab](s);
 }
 
 // ── 오늘 ──
@@ -64,6 +66,7 @@ function today(s) {
   const routines = routinesOn(s, date);
   return `
     <div class="day-head"><h2>${formatDate(date)}</h2><span class="pill">${prog.done}/${prog.total} 완료</span></div>
+    ${s.boss ? bossBanner(s.boss) : ''}
     ${prog.total && prog.done === prog.total
       ? '<div class="notice good">🎉 오늘 퀘스트를 모두 해냈어요! 밤하늘에 별이 하나 켜졌어요 ⭐ 내일 또 만나요.</div>'
       : '<p class="muted small">⭐ 오늘 퀘스트를 모두 하면 밤하늘에 별이 하나 켜지고, 함께 다니는 펫이 춤을 춰요.</p>'}
@@ -141,7 +144,55 @@ function hidden(s) {
     }).join('')}</div>`;
 }
 
+// ── 보스 ──
+
+function bossBanner(b) {
+  const left = bossLeft(b);
+  return `<a class="card boss-banner" href="#/quests/boss">
+    ${bossImage(b, { gray: left / b.hp, cls: 'mini' })}
+    <div><b>👾 ${esc(b.name)}</b><small>회색 껍질 ${left}칸 남음 · 이기는 행동: ${esc(b.actions[0] || '')}</small>${bar(1 - left / b.hp, '#9775fa')}</div>
+  </a>`;
+}
+
+function friendList(s) {
+  if (!s.bossFriends.length) return '';
+  return `<h3 class="section-title">🌈 친구가 된 보스 <small class="muted">${s.bossFriends.length}</small></h3>
+    <div class="boss-friends">${s.bossFriends.map((f) => `<div class="boss-friend">
+      ${bossImage(f, { cls: 'small' })}<b>${esc(f.name)}</b><small>${esc(f.habit)} · ${shortDate(f.befriended)}</small></div>`).join('')}</div>`;
+}
+
+function boss(s) {
+  const b = s.boss;
+  if (!b) {
+    return `<div class="notice">아직 보스가 없어요. 아빠·엄마와 함께 고치고 싶은 습관을 하나 정하면, 그 습관이 몬스터가 되어 나타나요!
+      몬스터는 나쁜 애가 아니라 회색 그림자 때문에 습관에 갇힌 친구예요.</div>${friendList(s)}`;
+  }
+  const left = bossLeft(b);
+  const full = b.pending.length >= BOSS_PENDING_MAX;
+  return `<section class="card boss-card">
+      <p class="kicker">👾 보스전 · ${esc(b.habit)}</p>
+      ${bossImage(b, { gray: left / b.hp })}
+      <h2>${esc(b.name)}</h2>
+      <div class="boss-say">"${esc(bossLine(b))}"</div>
+      <div class="boss-hp">${bar(1 - left / b.hp, '#9775fa')}<small>회색 껍질 <b>${left}칸</b> 남았어요 (${b.hits.length}/${b.hp} 벗겨짐)</small></div>
+      <h4>⚔️ 이기는 행동</h4>
+      ${b.actions.map((a) => `<div class="boss-action"><span>${esc(a)}</span>
+        <button class="btn small" data-action="boss-request" data-text="${esc(a)}" ${full ? 'disabled' : ''}>이겼어요!</button></div>`).join('')}
+      ${b.pending.length ? `<p class="wait">⏳ 아빠·엄마 확인을 기다리는 한 방 ${b.pending.length}개</p>` : ''}
+      <p class="muted small">이기는 행동을 하고 "이겼어요!"를 누르면, 아빠·엄마가 확인할 때 회색 껍질이 한 칸 벗겨져요.
+        아빠·엄마가 보고 먼저 눌러 주기도 해요. 오늘 졌어도 괜찮아요 — 몬스터는 다시 세지지 않아요.</p>
+    </section>
+    ${b.hits.length ? `<h3 class="section-title">지금까지의 한 방</h3>
+      <ul class="check-list">${b.hits.slice().reverse().slice(0, 10).map((h) => `<li class="done"><span>⚔️</span>
+        <span>${esc(h.action || '한 방')}${h.note ? ` — "${esc(h.note)}"` : ''}</span><small>${shortDate(h.date)} · ${esc(parentName(s, h.by))}</small></li>`).join('')}</ul>` : ''}
+    ${friendList(s)}`;
+}
+
 export const actions = {
+  'boss-request': (el) => {
+    const ok = store.update((s) => requestHit(s, el.dataset.text));
+    toast(ok ? '멋져요! 아빠·엄마가 확인하면 회색 껍질이 벗겨져요.' : '확인을 기다리는 한 방이 많아요. 아빠·엄마에게 먼저 보여 주세요.');
+  },
   'day-done': (el) => {
     const reward = store.update((s) => completeDay(s, el.dataset.id));
     if (reward) {

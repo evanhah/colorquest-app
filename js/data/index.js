@@ -12,6 +12,7 @@ import { TITLES, RANKS, DEFAULT_PRIVILEGES } from './titles.js';
 import { LANDS, VILLAGERS, CHEST_LINES } from './map.js';
 import { CONSTELLATIONS, STARS_PER_CONSTELLATION } from './sky.js';
 import { TALENT, CARDS, COACH_TIPS, SHOP, ORB_BY_RARITY, TRIP_QUESTS } from './petpower.js';
+import { BOSS_TEMPLATES, BOSS_HP_OPTIONS, BOSS_HP_DEFAULT } from './bosses.js';
 
 export function validateData() {
   const problems = [];
@@ -110,5 +111,11 @@ export function validateData() {
     if (!ORB_BY_RARITY[r] || !TRIP_QUESTS[r]) problems.push(`펫 능력: 등급 '${r}' 값 없음`);
   });
   SHOP.forEach((it) => unique(`shop:${it.id}`, '가게'));
+  BOSS_TEMPLATES.forEach((b) => {
+    unique(`boss:${b.id}`, '보스');
+    statOk(b.stat, `보스 ${b.id}`);
+    if (b.actions.length < 2 || b.lines.length !== 3 || !b.intro || !b.friend) problems.push(`보스 ${b.id}: 행동·말·이야기 빠짐`);
+  });
+  if (!BOSS_HP_OPTIONS.includes(BOSS_HP_DEFAULT)) problems.push('보스: 기본 껍질 칸 수가 선택지에 없음');
   return problems;
 }

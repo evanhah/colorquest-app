@@ -1,9 +1,9 @@
 // 부모 모드(비밀번호 4자리): 주간 미션 확인, 칭찬 카드, 히든 퀘스트 발견, 중점 가치·퀘스트, 매일 하는 일, 설정·백업.
-// 주소: #/parent · #/parent/praise · #/parent/make · #/parent/calendar · #/parent/hidden · #/parent/values · #/parent/routines · #/parent/settings
+// 주소: #/parent · #/parent/praise · #/parent/make · #/parent/boss · #/parent/calendar · #/parent/hidden · #/parent/values · #/parent/routines · #/parent/settings
 // 부모 화면을 떠나면 다시 잠긴다(app.js). 부모 화면에서는 축하 창을 띄우지 않고, 아이가 볼 때 보여 준다.
 
 import { store, ui, backupText, toggleIn } from '../state.js';
-import { esc, dateKey, weekKey, formatDate, daysBetween, toast, confirmTap, copyText, uid, josa, WEEKDAYS } from '../core/util.js';
+import { esc, dateKey, weekKey, formatDate, daysBetween, toast, confirmTap, copyText, uid, josa, WEEKDAYS, shrinkImage } from '../core/util.js';
 import {
   missionsOf, finishMission, cancelMission, givePraise, allHidden, findHidden,
   questList, valueOf, valueShares, rerollDay, rerollWeek, statGainFor, addToToday,
@@ -14,9 +14,11 @@ import { KIND_LABEL, REWARD } from '../data/quests.js';
 import { HIDDEN } from '../data/hidden.js';
 import { HERO_AVATARS } from '../data/titles.js';
 import { PARENT_IDS, PARENT_AVATARS } from '../data/parents.js';
-import { questRow, praiseCard, statTag, empty, parentName, restoreConfirm } from '../ui/components.js';
+import { questRow, praiseCard, statTag, empty, parentName, restoreConfirm, bossImage, bar } from '../ui/components.js';
 import { prepareRestore } from '../ui/actions.js';
 import { dayRecord, dayLevel, monthDates, monthSummary, firstMonth } from '../core/history.js';
+import { bossLeft, startBoss, confirmHit, dropRequest, undoHit, stopBoss } from '../core/boss.js';
+import { BOSS_TEMPLATES, BOSS_EMOJIS, BOSS_HP_OPTIONS, getBossTemplate } from '../data/bosses.js';
 
 const back = '<a class="back" href="#/parent">← 부모 모드</a>';
 
@@ -49,6 +51,7 @@ function pinGate() {
 const MENU = [
   ['praise', '💌', '칭찬 카드 쓰기', () => '본 것 + 누가 어떤 기분이었는지'],
   ['make', '✏️', '퀘스트 만들기', () => '경험치·능력치를 직접 정해서 만들어요'],
+  ['boss', '👾', '보스전', (s) => (s.boss ? `${s.boss.name} ${s.boss.hits.length}/${s.boss.hp}${s.boss.pending.length ? ` · 확인 ${s.boss.pending.length}` : ''}` : '고칠 습관을 몬스터로')],
   ['calendar', '🗓️', '달력·기록', (s) => `이번 달 퀘스트 한 날 ${monthSummary(s, dateKey().slice(0, 7)).activeDays}일`],
   ['hidden', '✨', '히든 퀘스트 발견', (s) => `발견 ${allHidden(s).filter((h) => s.hidden[h.id]).length}/${allHidden(s).length}`],
   ['values', '🎯', '중점 가치·퀘스트', () => '중요한 가치일수록 자주 나와요'],
@@ -87,6 +90,8 @@ function home(s) {
       ${open.length ? `<details><summary>아직 안 누른 미션 ${open.length}개 — 직접 완료 처리</summary>${open.map((m) => approveRow(s, wk, m)).join('')}</details>` : ''}
       ${auto.map((m) => `<p class="muted small">🔁 ${esc(m.text)} — 매일 하는 일을 체크하면 자동으로 완료돼요.</p>`).join('')}
     </section>
+
+    ${s.boss?.pending.length ? `<a class="notice block" href="#/parent/boss">👾 ${esc(s.boss.name)}: 아이가 "이겼어요!"를 ${s.boss.pending.length}번 눌렀어요. 확인하러 가기 →</a>` : ''}
 
     <div class="menu-grid">${MENU.map(([key, icon, label, desc]) =>
       `<a class="tile" href="#/parent/${key}"><span>${icon}</span><b>${label}</b><small>${esc(desc(s))}</small></a>`).join('')}</div>
@@ -321,6 +326,88 @@ function routines(s) {
     </section>`;
 }
 
+// ── 보스전 ──
+
+function bossSetup() {
+  return `<div class="notice">고치고 싶은 습관을 몬스터로 만들어요. <b>아이가 아니라 습관이 상대</b>라서 아이가 창피해하지 않고 부모와 한편이 돼요.
+    첫 보스는 <b>자주 일어나고 2~3주 안에 이길 수 있는 습관</b>으로 골라 주세요. 몬스터 이름과 모습은 아이와 함께 정하면 더 좋아요.</div>
+    <div class="template-list">${BOSS_TEMPLATES.map((tp) => `<button class="template" data-action="boss-start" data-id="${tp.id}">
+      <span>${tp.emoji}</span><b>${esc(tp.name)}</b><small>${esc(tp.habit)}</small></button>`).join('')}
+      <button class="template" data-action="boss-start" data-id="custom"><span>✏️</span><b>직접 만들기</b><small>습관·이름·행동을 직접 적어요</small></button>
+    </div>`;
+}
+
+function bossFriendsAdmin(s) {
+  if (!s.bossFriends.length) return '';
+  return `<h3 class="section-title">🌈 친구가 된 보스</h3>${s.bossFriends.map((f, i) => `<div class="made-row">
+    ${bossImage(f, { cls: 'small' })}
+    <div class="made-main"><b>${esc(f.name)}</b><small class="muted">${esc(f.habit)} · ${formatDate(f.started)} ~ ${formatDate(f.befriended)} · 한 방 ${f.hits}번</small></div>
+    ${f.routineAdded ? '<small class="muted">매일 하는 일로 이어 가는 중</small>'
+      : `<button class="btn ghost small" data-action="boss-routine" data-index="${i}">이기는 행동을 매일 하는 일로</button>`}
+  </div>`).join('')}
+  <p class="muted small">친구가 된 뒤에도 이기는 행동을 '매일 하는 일'로 두 달쯤 이어 가면 습관이 단단해져요.</p>`;
+}
+
+function boss(s) {
+  const b = s.boss;
+  if (!b) return `${back}<h2>👾 보스전</h2>${bossSetup()}${bossFriendsAdmin(s)}`;
+  const left = bossLeft(b);
+  const actionPick = ui.drafts.bossAction && b.actions.includes(ui.drafts.bossAction) ? ui.drafts.bossAction : b.actions[0];
+  const tpl = getBossTemplate(b.template);
+  return `${back}
+    <h2>👾 보스전</h2>
+    <section class="card boss-admin">
+      ${bossImage(b, { gray: left / b.hp, cls: 'small' })}
+      <div><b>${esc(b.name)}</b> <small class="muted">${esc(b.habit)} · ${formatDate(b.started)}부터</small>
+        ${bar(1 - left / b.hp, '#9775fa')}<small>회색 껍질 ${left}칸 남음 (${b.hits.length}/${b.hp})</small></div>
+    </section>
+
+    <section class="card form">
+      <h3>한 방 주기</h3>
+      <label>누가 확인하나요?</label>${whoChips(s, 'bossBy')}
+      ${b.pending.length ? `<label>아이가 "이겼어요!" 누른 것</label>${b.pending.map((pd) => `<div class="hrow">
+        <div class="hrow-main"><b>${esc(pd.action)}</b><small class="muted">${formatDate(pd.date)}</small></div>
+        <div class="row"><button class="btn small" data-action="boss-approve" data-id="${pd.id}">한 방 확인</button>
+          <button class="btn ghost small" data-action="boss-reject" data-id="${pd.id}">아직이에요</button></div></div>`).join('')}` : ''}
+      <label>직접 보고 한 방 주기</label>
+      ${chips(b.actions.map((a) => [a, esc(a)]), 'bossAction', actionPick)}
+      <input data-input="draft" data-key="bossNote" placeholder="아이에게 한마디 (선택) — 예: 알림 듣고 바로 껐지? 정말 멋졌어!" value="${esc(ui.drafts.bossNote || '')}">
+      <button class="btn" data-action="boss-hit">⚔️ 한 방!</button>
+      <p class="muted small">한 방마다 +10 XP, 회색 껍질이 다 벗겨지면 친구가 되고 +100 XP·황금 알을 받아요. 실수로 줬으면 아래에서 되돌릴 수 있어요.</p>
+    </section>
+
+    <section class="card form">
+      <h3>몬스터 꾸미기</h3>
+      <label>습관</label><input value="${esc(b.habit)}" data-change="boss-field" data-key="habit">
+      <label>몬스터 이름</label><input value="${esc(b.name)}" data-change="boss-field" data-key="name">
+      <label>모습</label>
+      <div class="avatars">${[...new Set([tpl?.emoji, ...BOSS_EMOJIS].filter(Boolean))].map((e) =>
+        `<button class="avatar-btn ${b.emoji === e && !b.photo ? 'on' : ''}" data-action="boss-emoji" data-emoji="${e}">${e}</button>`).join('')}</div>
+      <div class="row photo-row">
+        <label class="btn ghost">📷 아이가 그린 몬스터 사진 ${b.photo ? '바꾸기' : '넣기'}<input type="file" accept="image/*" data-change="boss-photo" hidden></label>
+        ${b.photo ? '<button class="btn ghost small" data-action="boss-photo-remove">사진 빼기</button>' : ''}
+      </div>
+      <label>이기는 행동 (1~2개)</label>
+      ${[0, 1].map((i) => `<input value="${esc(b.actions[i] || '')}" data-change="boss-action-text" data-index="${i}" placeholder="${i ? '(선택) 두 번째 이기는 행동' : '이기는 행동'}">`).join('')}
+      ${tpl ? `<p class="muted small">예시: ${tpl.actions.map(esc).join(' · ')}</p>` : ''}
+      <label>회색 껍질 칸 수</label>
+      <div class="chips">${BOSS_HP_OPTIONS.filter((n) => n > b.hits.length).map((n) =>
+        `<button class="chip ${b.hp === n ? 'on' : ''}" data-action="boss-hp" data-n="${n}">${n}칸</button>`).join('')}</div>
+    </section>
+
+    ${b.hits.length ? `<section class="card"><h3>지금까지의 한 방 ${b.hits.length}번</h3>
+      <ul class="check-list">${b.hits.slice().reverse().map((h) => `<li class="done"><span>⚔️</span>
+        <span>${esc(h.action || '한 방')}${h.note ? ` — "${esc(h.note)}"` : ''}</span><small>${formatDate(h.date)} · ${esc(parentName(s, h.by))}</small></li>`).join('')}</ul>
+      <button class="btn ghost small" data-action="boss-undo">마지막 한 방 되돌리기</button></section>` : ''}
+
+    <section class="card form danger">
+      <h3>보스전 쉬기</h3>
+      <p class="muted small">아이가 너무 힘들어하면 쉬어도 괜찮아요. 벌은 없고, 다시 시작하면 처음부터예요.</p>
+      <button class="btn ghost warn" data-action="boss-stop">보스전 쉬기</button>
+    </section>
+    ${bossFriendsAdmin(s)}`;
+}
+
 // ── 달력·기록 ──
 
 const TYPE_NAME = { routine: '매일 하는 일', daily: '오늘의 퀘스트', challenge: '오늘의 도전' };
@@ -462,6 +549,7 @@ function settings(s) {
 const SUB = {
   praise: { title: '칭찬 카드', render: praise },
   make: { title: '퀘스트 만들기', render: make },
+  boss: { title: '보스전', render: boss },
   calendar: { title: '달력·기록', render: calendar },
   hidden: { title: '히든 퀘스트', render: hidden },
   values: { title: '중점 가치', render: values },
@@ -514,6 +602,71 @@ export const actions = {
   'parent-lock': () => {
     ui.parentOk = false;
     location.hash = '#/me';
+  },
+  'boss-start': (el) => {
+    store.update((s) => startBoss(s, el.dataset.id));
+    toast(el.dataset.id === 'custom' ? '몬스터를 만들었어요. 아래에서 이름과 이기는 행동을 적어 주세요.' : '보스전 시작! 아이 화면에 보스가 나타나요.');
+  },
+  'boss-approve': (el) => {
+    store.update((s) => confirmHit(s, { pendingId: el.dataset.id, by: ui.drafts.bossBy || 'dad' }));
+    toast('한 방! 아이에게 iPad를 건네면 축하가 떠요');
+  },
+  'boss-reject': (el) => store.update((s) => dropRequest(s, el.dataset.id)),
+  'boss-hit': () => {
+    const b = store.get().boss;
+    if (!b) return;
+    const action = ui.drafts.bossAction && b.actions.includes(ui.drafts.bossAction) ? ui.drafts.bossAction : b.actions[0];
+    store.update((s) => confirmHit(s, { action, by: ui.drafts.bossBy || 'dad', note: (ui.drafts.bossNote || '').trim() }));
+    ui.drafts.bossNote = '';
+    store.refresh();
+    toast('한 방! 아이에게 iPad를 건네면 축하가 떠요');
+  },
+  'boss-undo': (el) => confirmTap(el, '한 번 더 누르면 되돌려요', () => store.update((s) => undoHit(s))),
+  'boss-stop': (el) => confirmTap(el, '정말 쉴까요? 한 번 더 누르세요', () => store.update((s) => stopBoss(s))),
+  'boss-field': (el) => store.update((s) => {
+    const v = el.value.trim();
+    if (s.boss && v) s.boss[el.dataset.key] = v;
+  }),
+  'boss-emoji': (el) => store.update((s) => {
+    if (!s.boss) return;
+    s.boss.emoji = el.dataset.emoji;
+    s.boss.photo = null;
+  }),
+  'boss-action-text': (el) => store.update((s) => {
+    if (!s.boss) return;
+    const list = [...s.boss.actions];
+    list[Number(el.dataset.index)] = el.value.trim();
+    const cleaned = list.filter(Boolean).slice(0, 2);
+    if (cleaned.length) s.boss.actions = cleaned;
+  }),
+  'boss-hp': (el) => store.update((s) => {
+    if (s.boss && Number(el.dataset.n) > s.boss.hits.length) s.boss.hp = Number(el.dataset.n);
+  }),
+  'boss-photo': async (el) => {
+    const file = el.files?.[0];
+    if (!file) return;
+    try {
+      const photo = await shrinkImage(file);
+      store.update((s) => {
+        if (s.boss) s.boss.photo = photo;
+      });
+      toast('몬스터 사진을 넣었어요!');
+    } catch {
+      toast('사진을 읽지 못했어요. 다른 사진으로 해 볼까요?');
+    }
+    el.value = '';
+  },
+  'boss-photo-remove': () => store.update((s) => {
+    if (s.boss) s.boss.photo = null;
+  }),
+  'boss-routine': (el) => {
+    store.update((s) => {
+      const f = s.bossFriends[Number(el.dataset.index)];
+      if (!f || f.routineAdded) return;
+      s.routines.push({ id: uid('r'), text: f.actions[0], icon: '⚔️', stat: f.stat, days: [0, 1, 2, 3, 4, 5, 6], on: true });
+      f.routineAdded = true;
+    });
+    toast('매일 하는 일에 넣었어요. 요일과 경험치는 매일 하는 일 화면에서 바꿀 수 있어요.');
   },
   'cal-move': (el) => {
     const today = dateKey();

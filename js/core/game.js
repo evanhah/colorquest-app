@@ -458,7 +458,7 @@ function rewardWith(s, celebration, ...grants) {
   s.celebrations.splice(at, 0, celebration);
 }
 
-function revoke(s, { xp = 0, stat = null, n = 0, text }) {
+export function revoke(s, { xp = 0, stat = null, n = 0, text }) {
   s.hero.xp = Math.max(0, s.hero.xp - xp);
   if (stat) s.hero.stats[stat] = Math.max(0, s.hero.stats[stat] - n);
   s.egg.warmth = Math.max(0, s.egg.warmth - xp);

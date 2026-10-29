@@ -93,4 +93,10 @@ export function restoreConfirm(restore) {
   </div>`;
 }
 
+/** 보스 몬스터 그림(아이가 그린 사진 또는 이모지). gray 1 = 완전히 회색, 0 = 색을 다 되찾음 */
+export function bossImage(b, { gray = 0, cls = '' } = {}) {
+  const inner = b.photo ? `<img src="${esc(b.photo)}" alt="${esc(b.name)}">` : `<span>${esc(b.emoji)}</span>`;
+  return `<div class="boss-face ${cls}" style="filter: grayscale(${gray.toFixed(2)})">${inner}</div>`;
+}
+
 export const empty = (text) => `<p class="empty">${esc(text)}</p>`;

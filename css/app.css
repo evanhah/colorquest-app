@@ -537,6 +537,45 @@ summary { font-weight: 800; cursor: pointer; padding: 4px 0; }
 .priv-row input[type="number"] { width: 76px; flex: none; }
 .danger { border: 2px solid #ffe3e3; }
 
+/* ── 보스전 ── */
+.boss-face { display: grid; place-items: center; margin: 6px auto; transition: filter .6s; }
+.boss-face span { font-size: 96px; line-height: 1; }
+.boss-face img { width: 160px; height: 160px; object-fit: contain; border-radius: 20px; background: #fff; }
+.boss-face.big span { font-size: 110px; }
+.boss-face.small span { font-size: 40px; }
+.boss-face.small img { width: 56px; height: 56px; border-radius: 12px; }
+.boss-face.mini span { font-size: 38px; }
+.boss-face.mini img { width: 52px; height: 52px; border-radius: 12px; }
+.boss-face.hit { animation: shakeEgg .6s ease-in-out; }
+.boss-card { text-align: center; }
+.boss-card h2 { margin: 4px 0; }
+.boss-say {
+  position: relative; display: inline-block; max-width: 100%; margin: 10px auto; padding: 10px 16px;
+  background: #f3f0ff; border-radius: 16px; font-weight: 700; color: #5f3dc4;
+}
+.boss-hp { margin: 10px 0; }
+.boss-hp .bar { height: 14px; }
+.boss-hp small { display: block; margin-top: 4px; color: var(--muted); }
+.boss-action { display: flex; align-items: center; gap: 10px; justify-content: space-between; text-align: left; background: var(--bg); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; font-weight: 700; }
+.boss-banner { display: flex; gap: 12px; align-items: center; border: 2px solid #d0bfff; }
+.boss-banner > div:last-child { flex: 1; min-width: 0; }
+.boss-banner small { display: block; color: var(--muted); margin-bottom: 6px; }
+.boss-banner .boss-face { margin: 0; }
+.boss-friends { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.boss-friend { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; background: #fff; border-radius: 16px; padding: 12px 8px; box-shadow: var(--shadow); }
+.boss-friend small { color: var(--muted); font-size: 12px; }
+.boss-admin { display: flex; gap: 14px; align-items: center; }
+.boss-admin > div:last-child { flex: 1; }
+.boss-admin small { display: block; }
+.boss-admin .boss-face { margin: 0; }
+.template-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.template { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; border: 2px solid var(--line); background: #fff; border-radius: 16px; padding: 14px 8px; }
+.template span { font-size: 36px; }
+.template small { color: var(--muted); }
+.photo-row { margin-top: 10px; }
+.form input + input { margin-top: 8px; }
+.dance .boss-face { margin: 0; }
+
 /* ── 달력·기록 (부모 모드) ── */
 .cal-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0 12px; }
 .cal-nav h3 { margin: 0; }
